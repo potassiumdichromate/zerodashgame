@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { useWallet } from './hooks/useWallet';
 import WalletConnect from './components/WalletConnect';
 import Leaderboard from './components/Leaderboard';
@@ -9,16 +10,13 @@ import CharacterMarketplace from './components/CharacterMarketplace';
 import DailyMissions from './components/DailyMissions';
 import NFTPassStatus from './components/NFTPassStatus';
 import Particles from './components/Particles';
+import Login from './components/Login';
+import LoginModal from './components/LoginModal';
 
 /**
- * Main App Component
- * Manages application state and screen flow:
- * 1. Splash Screen (Connect Wallet)
- * 2. Enhanced Menu Screen (Marketplace + Ready + Missions + NFT Status)
- * 3. Game Screen (Unity Canvas + Live Sidebars)
- * 4. Leaderboard Modal (Overlay)
+ * Main game experience (existing Zero Dash flow)
  */
-function App() {
+function GameRoot({ privyEnabled }) {
   // Wallet state from custom hook
   const {
     walletAddress,
@@ -32,6 +30,8 @@ function App() {
   // Screen state
   const [currentScreen, setCurrentScreen] = useState('splash'); // 'splash' | 'menu' | 'game'
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showPrivyLogin, setShowPrivyLogin] = useState(false);
+  const [privyWalletAddress, setPrivyWalletAddress] = useState(null);
 
   /**
    * Handle wallet connection
@@ -104,6 +104,9 @@ function App() {
           onConnect={handleConnect}
           isConnecting={isConnecting}
           error={walletError}
+          onPrivyConnect={
+            privyEnabled ? () => setShowPrivyLogin(true) : undefined
+          }
         />
       )}
 
@@ -111,7 +114,7 @@ function App() {
       {currentScreen === 'menu' && (
         <>
           {/* Top: NFT Pass Status */}
-          <NFTPassStatus walletAddress={walletAddress} />
+          <NFTPassStatus walletAddress={walletAddress || privyWalletAddress} />
 
           {/* Left: Character Marketplace */}
           <CharacterMarketplace />
@@ -179,7 +182,7 @@ function App() {
 
           {/* Center: Game Canvas */}
           <GameCanvas
-            walletAddress={walletAddress}
+            walletAddress={walletAddress || privyWalletAddress}
             isVisible={currentScreen === 'game'}
             onBack={handleBackToMenu}
           />
@@ -206,7 +209,36 @@ function App() {
           <div>Address: {truncatedAddress || 'Not connected'}</div>
         </div>
       )}
+
+      {privyEnabled && (
+        <LoginModal
+          open={showPrivyLogin}
+          onClose={() => setShowPrivyLogin(false)}
+          onAuthenticated={(addr) => {
+            setPrivyWalletAddress(addr || null);
+            setShowPrivyLogin(false);
+            // Mirror normal connect-wallet flow: go to menu
+            setCurrentScreen('menu');
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+/**
+ * App router
+ * - "/"      → main Zero Dash experience
+ * - "/login" → Privy login page with Connect Wallet modal
+ */
+function App({ privyEnabled = true }) {
+  return (
+    <Routes>
+      <Route path="/" element={<GameRoot privyEnabled={privyEnabled} />} />
+      {privyEnabled && <Route path="/login" element={<Login />} />}
+      {/* Fallback: send any unknown routes back to the main game */}
+      <Route path="*" element={<GameRoot privyEnabled={privyEnabled} />} />
+    </Routes>
   );
 }
 

@@ -5,7 +5,12 @@ import React, { useState } from 'react';
  * Now accepts connections even if wallet identifies as MetaMask
  * (Zerion sometimes sets isMetaMask=true for compatibility)
  */
-export default function WalletConnect({ onConnect, isConnecting, error }) {
+export default function WalletConnect({
+  onConnect,
+  isConnecting,
+  error,
+  onPrivyConnect,
+}) {
   const ZERION_DOWNLOAD_URL = 'https://zerion.io/download';
   
   const [showDiagnostics, setShowDiagnostics] = useState(false);
@@ -133,20 +138,32 @@ export default function WalletConnect({ onConnect, isConnecting, error }) {
         )}
 
         {/* Connect Wallet Button */}
-        <button
-          onClick={onConnect}
-          disabled={isConnecting}
-          className="pixel-button-primary mb-4"
-        >
-          {isConnecting ? (
-            <>
-              Connecting
-              <span className="loading-spinner ml-2" />
-            </>
-          ) : (
-            'Connect Wallet'
+        <div className="flex flex-col items-center gap-3 mb-4">
+          <button
+            onClick={onConnect}
+            disabled={isConnecting}
+            className="pixel-button-primary w-full max-w-xs"
+          >
+            {isConnecting ? (
+              <>
+                Connecting
+                <span className="loading-spinner ml-2" />
+              </>
+            ) : (
+              'Connect Wallet'
+            )}
+          </button>
+
+          {typeof onPrivyConnect === 'function' && (
+            <button
+              onClick={onPrivyConnect}
+              type="button"
+              className="pixel-button-secondary w-full max-w-xs"
+            >
+              Connect with Privy
+            </button>
           )}
-        </button>
+        </div>
 
         {/* General Error Message */}
         {error && !isZerionNotInstalled && (
