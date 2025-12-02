@@ -87,7 +87,7 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
 
     try {
       // 🔥 POINT TO R2 BUCKET
-      const R2_BASE_URL = 'https://pub-c51325b05b6848599be1cf2978bc4c0e.r2.dev/v2';
+      const R2_BASE_URL = 'https://pub-c51325b05b6848599be1cf2978bc4c0e.r2.dev/v3';
       
       const buildUrl = R2_BASE_URL;
       const loaderUrl = `${buildUrl}/ZeroDash.loader.js`;
