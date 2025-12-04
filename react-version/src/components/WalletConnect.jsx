@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect} from 'react';
 
 /**
  * WalletConnect Component - PERMISSIVE VERSION
@@ -48,6 +48,13 @@ export default function WalletConnect({
     console.log('window.zerion exists:', results.hasZerionWindow);
     console.log('============================');
   };
+
+  useEffect(() => {
+    // Auto-run diagnostics on component mount
+    console.log("running ");
+    console.log(onConnect, isConnecting, error, onPrivyConnect);
+    console.log("+++++++")
+  }, []);
 
   /**
    * Get troubleshooting advice based on diagnostics
