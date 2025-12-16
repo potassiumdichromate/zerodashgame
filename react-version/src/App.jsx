@@ -111,7 +111,7 @@ function GameRoot({ privyEnabled }) {
       )}
 
       {/* Enhanced Menu Screen: NFT Status + Marketplace + Ready + Missions */}
-      {currentScreen === 'menu' && (
+      {currentScreen === 'menu' && !showLeaderboard && (
         <>
           {/* Top: NFT Pass Status */}
           <NFTPassStatus walletAddress={walletAddress || privyWalletAddress} />
