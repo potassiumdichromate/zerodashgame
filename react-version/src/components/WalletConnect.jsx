@@ -149,7 +149,7 @@ export default function WalletConnect({
           <button
             onClick={onConnect}
             disabled={isConnecting}
-            className="pixel-button-primary w-full max-w-xs"
+            className="pixel-button-primary text-white w-full max-w-xs"
           >
             {isConnecting ? (
               <>
