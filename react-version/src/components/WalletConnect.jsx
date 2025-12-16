@@ -109,7 +109,7 @@ export default function WalletConnect({
           className="text-xs md:text-sm font-pixel text-zerion-blue-light mb-16"
           style={{ textShadow: '2px 2px 0 rgba(0, 0, 0, 0.8)' }}
         >
-          Zerion 🤝 Kult Games
+          Zerion 🤝 0g 🤝 Kult Games
         </p>
 
         {/* Zerion Not Installed Message */}
