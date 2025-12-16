@@ -39,7 +39,7 @@ export default function NFTPassStatus({ walletAddress }) {
   const handleMintClick = () => {
     // TODO: Integrate NFT minting
     console.log('Mint NFT clicked');
-    alert('Minting Zero Dash Pass NFT!\n\n(Blockchain integration coming soon!)');
+    alert('Minting is not active currently for demo purpose');
   };
 
   if (isChecking) {
