@@ -9,7 +9,7 @@ import React, { useState, useEffect } from 'react';
  * @param {string} walletAddress - User's wallet address
  */
 export default function NFTPassStatus({ walletAddress }) {
-  const [hasNFT, setHasNFT] = useState(false);
+  const [hasNFT, setHasNFT] = useState(true);
   const [isChecking, setIsChecking] = useState(true);
 
   /**
@@ -26,7 +26,7 @@ export default function NFTPassStatus({ walletAddress }) {
       // TODO: Replace with actual NFT ownership check
       // For now, randomly assign for demo
       const ownsNFT = Math.random() > 0.7; // 30% chance of having NFT
-      setHasNFT(ownsNFT);
+      setHasNFT(true);
       
       setIsChecking(false);
     };
