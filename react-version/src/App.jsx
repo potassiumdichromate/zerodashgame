@@ -218,7 +218,7 @@ function GameRoot({ privyEnabled }) {
             setPrivyWalletAddress(addr || null);
             setShowPrivyLogin(false);
             // Mirror normal connect-wallet flow: go to menu
-            setCurrentScreen('menu');
+            setCurrentScreen((prev) => (prev === 'game' ? 'game' : 'menu'));
           }}
         />
       )}
