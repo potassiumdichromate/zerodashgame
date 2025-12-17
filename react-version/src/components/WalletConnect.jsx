@@ -105,12 +105,12 @@ export default function WalletConnect({
         </h1>
 
         {/* Game Subtitle */}
-        <p 
+        {/* <p 
           className="text-xs md:text-sm font-pixel text-zerion-blue-light mb-16"
           style={{ textShadow: '2px 2px 0 rgba(0, 0, 0, 0.8)' }}
         >
           Zerion 🤝 0g 🤝 Kult Games
-        </p>
+        </p> */}
 
         {/* Zerion Not Installed Message */}
         {isZerionNotInstalled && (
@@ -182,14 +182,14 @@ export default function WalletConnect({
         )}
 
         {/* Diagnostic Tool Button */}
-        <div className="mt-8">
+        {/* <div className="mt-8">
           <button
             onClick={runDiagnostics}
             className="text-xs text-zerion-blue-light hover:text-zerion-yellow underline mb-4 transition-colors"
           >
             🔍 Not working? Run Diagnostics
           </button>
-        </div>
+        </div> */}
 
         {/* Diagnostic Results */}
         {showDiagnostics && diagnosticResults && (
@@ -256,12 +256,12 @@ export default function WalletConnect({
         {/* Instructions */}
         {!error && !showDiagnostics && (
           <div className="mt-8">
-            <p className="text-xs opacity-60 text-zerion-light mb-3">
+            {/* <p className="text-xs opacity-60 text-zerion-light mb-3">
               Connect your Zerion wallet to start playing
             </p>
             <p className="text-xs opacity-40 text-zerion-light mb-3">
               (Best experienced with Zerion Wallet)
-            </p>
+            </p> */}
             <a
               href={ZERION_DOWNLOAD_URL}
               target="_blank"
