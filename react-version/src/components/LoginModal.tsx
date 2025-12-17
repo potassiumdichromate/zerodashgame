@@ -606,7 +606,9 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
                           preflightEnsureAllowedNetwork(() => {
                             try { if (dialogRef.current?.open) dialogRef.current.close() } catch {}
                             if (hasInjectedZerionWallet()) {
-                              connectWallet({ walletList: ['zerion'] })
+                              // `connectWallet` links an external wallet; it doesn't authenticate a new user.
+                              // Use `login` so the connected wallet results in an authenticated Privy session.
+                              login({ loginMethods: ['wallet'] })
                               return
                             }
                             login({ loginMethods: ['wallet'] })
