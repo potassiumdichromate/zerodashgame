@@ -146,7 +146,7 @@ export default function WalletConnect({
 
         {/* Connect Wallet Button */}
         <div className="flex flex-col items-center gap-3 mb-4">
-          <button
+          {/* <button
             onClick={onConnect}
             disabled={isConnecting}
             className="pixel-button-primary text-white w-full max-w-xs"
@@ -159,15 +159,14 @@ export default function WalletConnect({
             ) : (
               'Connect Wallet'
             )}
-          </button>
-
+          </button> */}
           {typeof onPrivyConnect === 'function' && (
             <button
               onClick={onPrivyConnect}
               type="button"
-              className="pixel-button-secondary w-full max-w-xs"
+              className="pixel-button-primary text-white w-full max-w-xs"
             >
-              Connect with Privy
+              Connect Wallet
             </button>
           )}
         </div>
