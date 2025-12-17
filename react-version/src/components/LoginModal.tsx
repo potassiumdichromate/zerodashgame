@@ -65,6 +65,22 @@ const GoogleIcon = ({ size = 18 }: { size?: number }) => (
   </svg>
 )
 
+const MailIcon = ({ size = 18 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+    <path
+      d="M6.75 6.75h10.5A2.25 2.25 0 0 1 19.5 9v6A2.25 2.25 0 0 1 17.25 17.25H6.75A2.25 2.25 0 0 1 4.5 15V9A2.25 2.25 0 0 1 6.75 6.75Z"
+      stroke="currentColor"
+      strokeWidth="1.6"
+    />
+    <path
+      d="M5.25 8.25 12 12.75l6.75-4.5"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinejoin="round"
+    />
+  </svg>
+)
+
 type WalletId = 'metamask' | 'coinbase_wallet' | 'okx_wallet' | 'zerion'
 
 function DividerOr() {
@@ -114,33 +130,39 @@ function EmailForm({
   disabled: boolean
 }) {
   return (
-    <form className="grid gap-3" onSubmit={onEmailSubmit}>
+    <form className="grid gap-4" onSubmit={onEmailSubmit}>
       <label className="grid gap-2">
-        <span className="text-sm text-white/70">Email address</span>
-        <input
-          type="email"
-          required
-          placeholder="you@example.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-base text-white/95 placeholder-white/40 outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-amber-300/60 transition"
-          disabled={disabled}
-        />
+        <span className="text-xs font-medium tracking-wide text-white/70">Email address</span>
+        <div className="relative">
+          <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-white/45">
+            <MailIcon />
+          </span>
+          <input
+            id="email"
+            name="email"
+            type="email"
+            autoComplete="email"
+            required
+            placeholder="you@example.com"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full min-w-0 rounded-2xl border border-white/15 bg-white/5 px-4 py-3 pl-11 text-base text-white/95 placeholder-white/40 outline-none transition focus:border-amber-300/60 focus:ring-2 focus:ring-amber-400/40 disabled:opacity-60"
+            disabled={disabled}
+          />
+        </div>
+        <span className="text-[11px] text-white/45">We’ll email you a 6‑digit code.</span>
       </label>
-      <div className="mt-1">
-        <button
-          type="submit"
-          className="inline-flex w-full items-center justify-center rounded-2xl border border-amber-400/70 bg-gradient-to-tr from-amber-500 via-orange-500 to-red-500 px-5 py-3 font-bold text-white shadow-[0_10px_28px_rgba(251,146,60,0.45)] hover:shadow-[0_14px_34px_rgba(251,146,60,0.6)] active:scale-[.98] disabled:opacity-60"
-          disabled={
-            disabled ||
-            emailState.status === 'sending-code' ||
-            emailState.status === 'submitting-code'
-          }
-          onClick={() => setLoginMethod('email')}
-        >
-          {emailState.status === 'sending-code' ? 'Sending…' : 'Send code'}
-        </button>
-      </div>
+
+      <button
+        type="submit"
+        className="inline-flex w-full min-w-0 items-center justify-center rounded-2xl border border-amber-400/70 bg-gradient-to-tr from-amber-500 via-orange-500 to-red-500 px-5 py-3 font-bold text-white shadow-[0_10px_28px_rgba(251,146,60,0.45)] transition hover:shadow-[0_14px_34px_rgba(251,146,60,0.6)] active:scale-[.98] disabled:opacity-60"
+        disabled={
+          disabled || emailState.status === 'sending-code' || emailState.status === 'submitting-code'
+        }
+        onClick={() => setLoginMethod('email')}
+      >
+        {emailState.status === 'sending-code' ? 'Sending…' : 'Send code'}
+      </button>
     </form>
   )
 }
@@ -169,7 +191,7 @@ function CodeForm({
           placeholder="123456"
           value={code}
           onChange={(e) => setCode(e.target.value)}
-          className="rounded-xl border border-white/20 bg-white/5 px-4 py-3 text-base text-[#EAF6FF] outline-none focus:ring-2 focus:ring-amber-400/60"
+          className="w-full min-w-0 rounded-2xl border border-white/20 bg-white/5 px-4 py-3 text-center font-mono text-base tracking-[0.35em] text-[#EAF6FF] outline-none focus:ring-2 focus:ring-amber-400/60"
         />
       </label>
       <div className="mt-1 flex justify-between gap-2">
@@ -499,7 +521,8 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
     <dialog
       ref={dialogRef}
       onCancel={requestClose}
-      className="fixed inset-0 z-50 m-0 flex items-center justify-center bg-black/40 p-4 sm:p-6 w-full h-full"
+      style = {{minWidth:"100vw",minHeight:"100vh"}}
+      className="fixed inset-0 z-50 m-0 flex items-center justify-center bg-black/40 p-4 sm:p-6"
     >
       <div className="relative w-full max-w-md rounded-2xl border border-amber-400/60 bg-[rgba(24,16,8,0.96)] shadow-[0_30px_80px_rgba(0,0,0,0.70)]">
         <button
