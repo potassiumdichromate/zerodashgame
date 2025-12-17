@@ -47,6 +47,18 @@ function deriveAuthMethodFromUser(user: any | undefined | null): 'email' | 'oaut
   return null
 }
 
+function hasInjectedZerionWallet(): boolean {
+  const w = window as any
+  const eth = w?.ethereum
+  if (!eth) return false
+
+  if (eth.isZerion) return true
+  if (w.zerionWallet || w.zerion) return true
+
+  const providers = Array.isArray(eth.providers) ? eth.providers : []
+  return providers.some((p: any) => Boolean(p?.isZerion))
+}
+
 /* ============================== Icons / Small UI ============================== */
 const WalletIcon = ({ size = 18 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -593,6 +605,10 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
                           if (emailStep === 'enter-code') return
                           preflightEnsureAllowedNetwork(() => {
                             try { if (dialogRef.current?.open) dialogRef.current.close() } catch {}
+                            if (hasInjectedZerionWallet()) {
+                              connectWallet({ walletList: ['zerion'] })
+                              return
+                            }
                             login({ loginMethods: ['wallet'] })
                           })
                         }}

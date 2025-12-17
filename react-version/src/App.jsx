@@ -12,6 +12,29 @@ import NFTPassStatus from './components/NFTPassStatus';
 import Particles from './components/Particles';
 import Login from './components/Login';
 import LoginModal from './components/LoginModal';
+import desktopBg from './assets/bg.png';
+import mobileBg from './assets/dbg.png';
+
+function HomeBackground() {
+  return (
+    <>
+      <div
+        aria-hidden="true"
+        className="fixed inset-0 -z-20 bg-center bg-cover bg-no-repeat md:hidden"
+        style={{ backgroundImage: `url(${mobileBg})` }}
+      />
+      <div
+        aria-hidden="true"
+        className="fixed inset-0 -z-20 hidden bg-center bg-cover bg-no-repeat md:block"
+        style={{ backgroundImage: `url(${desktopBg})` }}
+      />
+      <div
+        aria-hidden="true"
+        className="fixed inset-0 -z-10 bg-gradient-to-b from-black/35 via-black/55 to-black/80"
+      />
+    </>
+  );
+}
 
 /**
  * Main game experience (existing Zero Dash flow)
@@ -76,6 +99,8 @@ function GameRoot({ privyEnabled }) {
 
   return (
     <div className="relative w-full h-screen overflow-hidden">
+      <HomeBackground />
+
       {/* Particle Animation Background */}
       <Particles />
 
