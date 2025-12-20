@@ -1,4 +1,4 @@
-import React, { useState, useEffect} from 'react';
+import React, { useState, useEffect } from 'react';
 
 /**
  * WalletConnect Component - PERMISSIVE VERSION
@@ -12,7 +12,7 @@ export default function WalletConnect({
   onPrivyConnect,
 }) {
   const ZERION_DOWNLOAD_URL = 'https://zerion.io/download';
-  
+
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [diagnosticResults, setDiagnosticResults] = useState(null);
 
@@ -89,8 +89,8 @@ export default function WalletConnect({
     <div className="fixed inset-0 flex items-center justify-center p-5 overflow-y-auto">
       <div className="max-w-2xl w-full text-center fade-in py-10">
         {/* Game Logo */}
-        <h1 
-          className="text-4xl md:text-6xl lg:text-7xl font-pixel text-zerion-yellow mb-10 animate-logo-float"
+        <h1
+          className="text-4xl md:text-6xl lg:text-7xl font-pixel text-zerion-yellow mb-4 animate-logo-float"
           style={{
             textShadow: `
               4px 4px 0 #f59e0b,
@@ -103,22 +103,22 @@ export default function WalletConnect({
         >
           ZERO DASH
         </h1>
-
-        {/* Game Subtitle */}
-        {/* <p 
-          className="text-xs md:text-sm font-pixel text-zerion-blue-light mb-16"
+        <p
+          className="text-xs md:text-sm font-pixel text-zerion-blue-light mb-8"
           style={{ textShadow: '2px 2px 0 rgba(0, 0, 0, 0.8)' }}
         >
           Zerion 🤝 0g 🤝 Kult Games
-        </p> */}
+        </p>
+        {/* Game Subtitle */}
+
 
         {/* Zerion Not Installed Message */}
         {isZerionNotInstalled && (
           <div className="mb-8 p-6 bg-zerion-blue-dark/90 border-4 border-zerion-yellow rounded-lg animate-pulse-slow">
             <div className="mb-4">
-              <svg 
+              <svg
                 className="w-16 h-16 mx-auto mb-4 text-zerion-yellow"
-                fill="currentColor" 
+                fill="currentColor"
                 viewBox="0 0 20 20"
               >
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
@@ -170,16 +170,16 @@ export default function WalletConnect({
             </button>
           )}
         </div>
-
         {/* General Error Message */}
         {error && !isZerionNotInstalled && (
-          <div 
+          <div
             className="mt-6 p-5 bg-red-900/90 border-4 border-red-500 text-sm animate-shake rounded"
             style={{ textShadow: '1px 1px 0 rgba(0, 0, 0, 0.8)' }}
           >
             ⚠️ {error}
           </div>
         )}
+
 
         {/* Diagnostic Tool Button */}
         {/* <div className="mt-8">
@@ -197,7 +197,7 @@ export default function WalletConnect({
             <h4 className="text-sm font-pixel text-zerion-yellow mb-4">
               🔍 Diagnostic Results
             </h4>
-            
+
             {/* Status Checks */}
             <div className="space-y-2 text-xs mb-4 font-mono">
               <div className="flex items-center justify-between">
@@ -228,12 +228,11 @@ export default function WalletConnect({
 
             {/* Troubleshooting Advice */}
             {getTroubleshootingAdvice() && (
-              <div className={`p-4 rounded mb-4 ${
-                getTroubleshootingAdvice().type === 'error' ? 'bg-red-900/50 border-2 border-red-500' :
+              <div className={`p-4 rounded mb-4 ${getTroubleshootingAdvice().type === 'error' ? 'bg-red-900/50 border-2 border-red-500' :
                 getTroubleshootingAdvice().type === 'warning' ? 'bg-orange-900/50 border-2 border-orange-500' :
-                getTroubleshootingAdvice().type === 'info' ? 'bg-blue-900/50 border-2 border-blue-500' :
-                'bg-green-900/50 border-2 border-green-500'
-              }`}>
+                  getTroubleshootingAdvice().type === 'info' ? 'bg-blue-900/50 border-2 border-blue-500' :
+                    'bg-green-900/50 border-2 border-green-500'
+                }`}>
                 <h5 className="font-bold text-sm mb-2">
                   {getTroubleshootingAdvice().title}
                 </h5>
