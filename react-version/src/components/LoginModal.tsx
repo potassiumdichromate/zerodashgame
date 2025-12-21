@@ -473,8 +473,10 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
 
   const connectWith = async (wallet: WalletId) => {
     try {
+      // Just visually close the dialog, but DO NOT unmount the component (do not call onClose)
+      // The component must remain mounted for useConnectWallet hook to work.
       try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
-      onClose?.()
+
       await connectWallet({ walletList: [wallet] })
     } catch (err: any) {
       // eslint-disable-next-line no-console
