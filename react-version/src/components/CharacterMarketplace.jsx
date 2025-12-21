@@ -1,17 +1,16 @@
 import React, { useState } from 'react';
 
 /**
- * CharacterMarketplace Component - FIXED VERSION
- * Shows available characters for purchase with ETH prices
+ * CharacterMarketplace Component - COMING SOON VERSION
+ * Shows available characters but marked as coming soon
  * Features:
- * - Working scroll functionality
- * - Interactive click with modal
- * - Ready for blockchain integration
- * - Better visual feedback
+ * - All elements visible but disabled
+ * - "Coming Soon" overlay
+ * - Visual feedback that feature is in development
+ * - Ready for easy activation when blockchain is integrated
  */
 export default function CharacterMarketplace() {
-  const [selectedCharacter, setSelectedCharacter] = useState(null);
-  const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [showComingSoonModal, setShowComingSoonModal] = useState(false);
 
   // 28 unique characters with names, prices, and emojis
   const characters = [
@@ -67,56 +66,15 @@ export default function CharacterMarketplace() {
     return badges[rarity] || badges.common;
   };
 
-  const handleBuyClick = (character) => {
-    setSelectedCharacter(character);
-    setShowPurchaseModal(true);
-    console.log('Character selected:', character.name);
-  };
-
-  const handleConfirmPurchase = async () => {
-    // TODO: Add your blockchain logic here
-    console.log('Purchasing:', selectedCharacter.name, 'for', selectedCharacter.price, 'ETH');
-    
-    /* EXAMPLE BLOCKCHAIN INTEGRATION:
-    
-    try {
-      // Using ethers.js
-      const tx = await contract.buyCharacter(
-        selectedCharacter.id, 
-        { value: ethers.utils.parseEther(selectedCharacter.price.toString()) }
-      );
-      
-      // Wait for confirmation
-      await tx.wait();
-      
-      alert(`✅ Success! You now own ${selectedCharacter.name}!`);
-      
-      // Update user's owned characters
-      // fetchOwnedCharacters();
-      
-    } catch (error) {
-      console.error('Purchase failed:', error);
-      alert(`❌ Purchase failed: ${error.message}`);
-    }
-    
-    */
-    
-    // For now, just show alert
-    alert(`✅ Purchase initiated!\n\nCharacter: ${selectedCharacter.name}\nPrice: ${selectedCharacter.price} ETH\n\n💡 Add your blockchain logic in handleConfirmPurchase()`);
-    
-    setShowPurchaseModal(false);
-  };
-
-  const handleCancelPurchase = () => {
-    setShowPurchaseModal(false);
-    setSelectedCharacter(null);
+  const handleCharacterClick = () => {
+    setShowComingSoonModal(true);
   };
 
   return (
     <>
       <div className="fixed left-4 top-24 bottom-4 w-72 z-[100] hidden lg:block">
         <div
-          className="h-full bg-zerion-blue-dark/95 border-4 border-zerion-yellow rounded-lg overflow-hidden flex flex-col"
+          className="h-full bg-zerion-blue-dark/95 border-4 border-zerion-yellow rounded-lg overflow-hidden flex flex-col relative"
           style={{
             boxShadow: '0 8px 32px rgba(255, 215, 0, 0.2)',
           }}
@@ -127,13 +85,13 @@ export default function CharacterMarketplace() {
               🛒 CHARACTER SHOP
             </h3>
             <p className="text-xs font-pixel text-zerion-blue-light text-center mt-1">
-              28 Unique Heroes • Click to Buy
+              28 Unique Heroes • Coming Soon
             </p>
           </div>
 
-          {/* Character Grid - FIXED SCROLLING */}
+          {/* Character Grid - Slightly dimmed */}
           <div 
-            className="flex-1 overflow-y-auto p-3"
+            className="flex-1 overflow-y-auto p-3 opacity-60"
             style={{
               scrollbarWidth: 'thin',
               scrollbarColor: '#3b82f6 rgba(0,0,0,0.3)',
@@ -143,12 +101,11 @@ export default function CharacterMarketplace() {
               {characters.map((character) => (
                 <button
                   key={character.id}
-                  onClick={() => handleBuyClick(character)}
+                  onClick={handleCharacterClick}
                   className={`
                     relative rounded-lg border-2 p-2 
-                    transition-all duration-200 cursor-pointer
+                    transition-all duration-200 cursor-not-allowed
                     hover:scale-105 hover:shadow-xl
-                    active:scale-95
                     ${getRarityColor(character.rarity)}
                   `}
                   style={{
@@ -161,7 +118,7 @@ export default function CharacterMarketplace() {
                   </div>
 
                   {/* Character Emoji */}
-                  <div className="text-3xl text-center mb-1 transition-transform duration-200 hover:scale-110">
+                  <div className="text-3xl text-center mb-1 transition-transform duration-200">
                     {character.emoji}
                   </div>
 
@@ -177,11 +134,9 @@ export default function CharacterMarketplace() {
                     </p>
                   </div>
 
-                  {/* Click indicator overlay */}
-                  <div className="absolute inset-0 bg-zerion-yellow/0 hover:bg-zerion-yellow/20 rounded-lg transition-all duration-200 pointer-events-none flex items-center justify-center opacity-0 hover:opacity-100">
-                    <span className="text-xs font-pixel text-white font-bold bg-black/80 px-3 py-1 rounded-full border-2 border-zerion-yellow">
-                      CLICK TO BUY
-                    </span>
+                  {/* Lock Overlay */}
+                  <div className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center">
+                    <span className="text-2xl">🔒</span>
                   </div>
                 </button>
               ))}
@@ -211,101 +166,125 @@ export default function CharacterMarketplace() {
               </div>
             </div>
           </div>
-        </div>
 
-        {/* Custom Scrollbar Styles */}
-        <style jsx>{`
-          div::-webkit-scrollbar {
-            width: 8px;
-          }
-          div::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.3);
-            border-radius: 4px;
-          }
-          div::-webkit-scrollbar-thumb {
-            background: #3b82f6;
-            border-radius: 4px;
-            border: 2px solid rgba(0, 0, 0, 0.3);
-          }
-          div::-webkit-scrollbar-thumb:hover {
-            background: #60a5fa;
-          }
-        `}</style>
+          {/* COMING SOON Banner Overlay */}
+          <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-10">
+            <div 
+              className="bg-gradient-to-r from-purple-900/95 to-blue-900/95 border-4 border-yellow-400 rounded-lg p-6 shadow-2xl transform rotate-[-5deg]"
+              style={{
+                boxShadow: '0 0 60px rgba(255, 215, 0, 0.6), inset 0 0 40px rgba(0,0,0,0.5)',
+              }}
+            >
+              <div className="text-center">
+                <p className="text-4xl font-pixel text-yellow-400 font-bold mb-2 animate-pulse" style={{ textShadow: '3px 3px 0 rgba(0,0,0,0.8)' }}>
+                  COMING SOON
+                </p>
+                <p className="text-sm font-pixel text-white">
+                  🚀 Character Shop
+                </p>
+                <p className="text-xs font-pixel text-blue-200 mt-2">
+                  Stay tuned for epic heroes!
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Custom Scrollbar Styles */}
+          <style jsx>{`
+            div::-webkit-scrollbar {
+              width: 8px;
+            }
+            div::-webkit-scrollbar-track {
+              background: rgba(0, 0, 0, 0.3);
+              border-radius: 4px;
+            }
+            div::-webkit-scrollbar-thumb {
+              background: #3b82f6;
+              border-radius: 4px;
+              border: 2px solid rgba(0, 0, 0, 0.3);
+            }
+            div::-webkit-scrollbar-thumb:hover {
+              background: #60a5fa;
+            }
+          `}</style>
+        </div>
       </div>
 
-      {/* Purchase Confirmation Modal */}
-      {showPurchaseModal && selectedCharacter && (
+      {/* Coming Soon Modal */}
+      {showComingSoonModal && (
         <div 
           className="fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center p-4"
-          onClick={handleCancelPurchase}
+          onClick={() => setShowComingSoonModal(false)}
         >
           <div 
-            className="bg-zerion-blue-dark border-4 border-zerion-yellow rounded-lg p-6 max-w-md w-full animate-scale-in"
+            className="bg-zerion-blue-dark border-4 border-zerion-yellow rounded-lg p-8 max-w-md w-full animate-scale-in"
             onClick={(e) => e.stopPropagation()}
             style={{
               boxShadow: '0 0 50px rgba(255, 215, 0, 0.4)',
             }}
           >
             {/* Modal Header */}
-            <div className="text-center mb-4">
-              <div className="text-6xl mb-3 animate-bounce">{selectedCharacter.emoji}</div>
-              <h3 className="text-xl font-pixel text-zerion-yellow font-bold mb-2">
-                {selectedCharacter.name}
+            <div className="text-center mb-6">
+              <div className="text-6xl mb-4 animate-bounce">🚀</div>
+              <h3 className="text-2xl font-pixel text-zerion-yellow font-bold mb-3">
+                COMING SOON
               </h3>
-              <div className={`inline-block px-3 py-1 rounded-lg border-2 ${getRarityColor(selectedCharacter.rarity)}`}>
-                <span className="text-xs font-pixel text-white uppercase">
-                  {selectedCharacter.rarity}
-                </span>
-              </div>
-            </div>
-
-            {/* Price Display */}
-            <div className="bg-zerion-blue-medium/50 border-2 border-zerion-blue rounded-lg p-4 mb-4">
-              <p className="text-xs font-pixel text-zerion-blue-light text-center mb-2">
-                PURCHASE PRICE
-              </p>
-              <p className="text-3xl font-pixel text-zerion-yellow text-center font-bold">
-                {selectedCharacter.price} ETH
-              </p>
-              <p className="text-xs font-pixel text-zerion-light text-center mt-2">
-                ≈ ${(selectedCharacter.price * 2000).toFixed(2)} USD
+              <p className="text-sm font-pixel text-white mb-4">
+                Character Shop is Under Development
               </p>
             </div>
 
-            {/* Character Benefits */}
-            <div className="bg-green-900/20 border-2 border-green-500/30 rounded-lg p-3 mb-6">
-              <p className="text-xs font-pixel text-green-400 mb-2">✨ UNLOCKS:</p>
-              <ul className="text-xs font-pixel text-white space-y-1">
-                <li>✅ Unique character skin</li>
-                <li>✅ Special abilities</li>
-                <li>✅ Exclusive animations</li>
-                <li>✅ Profile badge</li>
+            {/* Features Preview */}
+            <div className="bg-zerion-blue-medium/50 border-2 border-zerion-blue rounded-lg p-4 mb-6">
+              <p className="text-xs font-pixel text-zerion-yellow text-center mb-3 font-bold">
+                ✨ COMING FEATURES:
+              </p>
+              <ul className="text-xs font-pixel text-white space-y-2">
+                <li className="flex items-center gap-2">
+                  <span className="text-green-400">✅</span>
+                  <span>28 Unique Characters</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-green-400">✅</span>
+                  <span>Blockchain NFT Integration</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-green-400">✅</span>
+                  <span>Special Abilities & Skins</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-green-400">✅</span>
+                  <span>Exclusive Animations</span>
+                </li>
+                <li className="flex items-center gap-2">
+                  <span className="text-green-400">✅</span>
+                  <span>Trade & Marketplace</span>
+                </li>
               </ul>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={handleCancelPurchase}
-                className="flex-1 pixel-button-secondary text-xs py-3"
-              >
-                ❌ CANCEL
-              </button>
-              <button
-                onClick={handleConfirmPurchase}
-                className="flex-1 pixel-button-primary text-xs py-3"
-              >
-                ✅ BUY NOW
-              </button>
+            {/* Launch Timeline */}
+            <div className="bg-purple-900/30 border-2 border-purple-500/50 rounded-lg p-4 mb-6">
+              <p className="text-xs font-pixel text-purple-300 text-center mb-2">
+                📅 EXPECTED LAUNCH
+              </p>
+              <p className="text-lg font-pixel text-white text-center font-bold">
+                Q1 2025
+              </p>
             </div>
 
-            {/* Blockchain Integration Note */}
-            <div className="mt-4 bg-blue-900/20 border border-blue-500/30 rounded p-2">
-              <p className="text-xs font-pixel text-center text-blue-300">
-                💡 Blockchain Integration Point
-              </p>
-              <p className="text-xs font-pixel text-center text-zerion-light mt-1">
-                Add your smart contract logic in handleConfirmPurchase()
+            {/* Close Button */}
+            <button
+              onClick={() => setShowComingSoonModal(false)}
+              className="pixel-button-primary w-full text-sm py-3"
+            >
+              ✨ GOT IT!
+            </button>
+
+            {/* Follow Note */}
+            <div className="mt-4 text-center">
+              <p className="text-xs font-pixel text-zerion-blue-light">
+                Stay tuned for updates! 🎮
               </p>
             </div>
           </div>
