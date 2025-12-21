@@ -611,17 +611,20 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
                               // IMPORTANT: Even if connectWith FAILS (e.g. "Wallet already detected" or "existed_auth_flow"),
                               // we MUST try to login() to prompt for the signature if the wallet is indeed ready.
                               if (result?.ok) {
-                                login({ loginMethods: ['wallet'] })
+                                // @ts-ignore
+                                login({ loginMethods: ['wallet'], walletList: ['zerion'] })
                               } else {
                                 // If connection 'failed', it might just mean we are already linked.
                                 // Try logging in anyway.
                                 console.warn('Connection result not OK, attempting login anyway (fallback)...')
-                                login({ loginMethods: ['wallet'] })
+                                // @ts-ignore
+                                login({ loginMethods: ['wallet'], walletList: ['zerion'] })
                               }
                             } catch (e) {
                               console.error('Overall connect flow error', e)
                               // Final fallback
-                              login({ loginMethods: ['wallet'] })
+                              // @ts-ignore
+                              login({ loginMethods: ['wallet'], walletList: ['zerion'] })
                             }
                           })
                         }}

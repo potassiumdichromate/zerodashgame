@@ -37,23 +37,23 @@ export default function WalletConnect({
     setDiagnosticResults(results);
     setShowDiagnostics(true);
 
-    console.log('=== 🔍 DIAGNOSTIC RESULTS ===');
-    console.log('Has ethereum:', results.hasEthereum);
-    console.log('Is Zerion:', results.isZerion);
-    console.log('Is MetaMask:', results.isMetaMask);
-    console.log('Is Coinbase:', results.isCoinbase);
-    console.log('Has providers array:', results.hasProviders);
-    console.log('Provider count:', results.providerCount);
-    console.log('Zerion in providers:', results.zerionInProviders);
-    console.log('window.zerion exists:', results.hasZerionWindow);
-    console.log('============================');
+    // console.log('=== 🔍 DIAGNOSTIC RESULTS ===');
+    // console.log('Has ethereum:', results.hasEthereum);
+    // console.log('Is Zerion:', results.isZerion);
+    // console.log('Is MetaMask:', results.isMetaMask);
+    // console.log('Is Coinbase:', results.isCoinbase);
+    // console.log('Has providers array:', results.hasProviders);
+    // console.log('Provider count:', results.providerCount);
+    // console.log('Zerion in providers:', results.zerionInProviders);
+    // console.log('window.zerion exists:', results.hasZerionWindow);
+    // console.log('============================');
   };
 
   useEffect(() => {
     // Auto-run diagnostics on component mount
-    console.log("running ");
-    console.log(onConnect, isConnecting, error, onPrivyConnect);
-    console.log("+++++++")
+    // console.log("running ");
+    // console.log(onConnect, isConnecting, error, onPrivyConnect);
+    // console.log("+++++++")
   }, []);
 
   /**
@@ -256,12 +256,6 @@ export default function WalletConnect({
           {/* Instructions */}
           {!error && !showDiagnostics && (
             <div className="mt-8">
-              {/* <p className="text-xs opacity-60 text-zerion-light mb-3">
-                      Connect your Zerion wallet to start playing
-                    </p>
-                    <p className="text-xs opacity-40 text-zerion-light mb-3">
-                      (Best experienced with Zerion Wallet)
-                    </p> */}
               <a
                 href={ZERION_DOWNLOAD_URL}
                 target="_blank"
