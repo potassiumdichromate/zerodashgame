@@ -265,14 +265,14 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
           if (storedWalletAddress) {
             setTimeout(() => {
               try {
-                unityInstance.SendMessage('GameManager', 'SetWalletAddress', storedWalletAddress);
+                unityInstance.SendMessage('GameBootstrapper', 'SetWalletAddress', storedWalletAddress);
                 console.log('✅ Wallet address sent to Unity:', storedWalletAddress);
                 
                 window.playerWalletAddress = storedWalletAddress;
                 console.log('✅ Wallet set as window.playerWalletAddress');
                 
                 try {
-                  unityInstance.SendMessage('GameManager', 'SaveWalletAddress', storedWalletAddress);
+                  unityInstance.SendMessage('GameBootstrapper', 'SaveWalletAddress', storedWalletAddress);
                   console.log('✅ Wallet saved in Unity PlayerPrefs');
                 } catch (err) {
                   console.log('ℹ️ SaveWalletAddress not available (optional)');
