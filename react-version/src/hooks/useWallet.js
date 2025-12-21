@@ -177,56 +177,31 @@ export function useWallet() {
     setIsConnecting(true);
     setError(null);
 
-    // Log current wallet state for debugging
-    // console.log('=== 🔍 Wallet Detection Debug ===');
-    // console.log('window.ethereum exists:', !!window.ethereum);
-    // console.log('window.ethereum.isZerion:', window.ethereum?.isZerion);
-    // console.log('window.ethereum.isMetaMask:', window.ethereum?.isMetaMask);
-    // console.log('window.ethereum.isCoinbaseWallet:', window.ethereum?.isCoinbaseWallet);
-    // console.log('window.ethereum.providers:', window.ethereum?.providers);
-    // console.log('window.zerion exists:', !!window.zerion);
-    // console.log('==============================');
-
     try {
-      // Wait for wallet injection
-      // Wait for wallet injection - using polling instead of fixed timeout
-      console.log('⏳ Waiting for wallet injection...');
       await waitForProvider();
 
-      // Check if any Ethereum provider exists
       if (typeof window.ethereum === 'undefined' && !window.zerion) {
-        console.error('❌ No Ethereum provider detected');
-        console.error('💡 Please install Zerion wallet extension');
         throw new Error('ZERION_NOT_INSTALLED');
       }
 
-      // Find potential Zerion provider
       const potentialProvider = findZerionProvider();
 
       if (!potentialProvider) {
-        console.error('❌ No wallet detected that could be Zerion');
         throw new Error('ZERION_NOT_INSTALLED');
       }
 
-      console.log('✅ Found wallet provider, attempting connection...');
       setProvider(potentialProvider);
 
-      // Request account access
       const accounts = await potentialProvider.request({
         method: 'eth_requestAccounts',
       });
 
       if (accounts && accounts.length > 0) {
         const connectedAddress = accounts[0];
-        console.log('✅ Connected to wallet:', connectedAddress);
-
-        // Verify it's Zerion (permissive check)
         const isVerifiedZerion = await verifyIsZerion(potentialProvider, connectedAddress);
-
-        if (!isVerifiedZerion) {
-          console.warn('⚠️ Could not verify this is Zerion wallet');
-          // Still allow connection but warn user
-        }
+        // if (!isVerifiedZerion) {
+        //   console.warn('⚠️ Could not verify this is Zerion wallet');
+        // }
 
         setWalletAddress(connectedAddress);
         setError(null);
@@ -241,8 +216,6 @@ export function useWallet() {
       }
     } catch (err) {
       console.error('❌ Wallet connection error:', err);
-
-      // Handle specific error cases
       if (err.message === 'ZERION_NOT_INSTALLED') {
         setError('ZERION_NOT_INSTALLED');
       } else if (err.code === 4001) {
@@ -272,24 +245,15 @@ export function useWallet() {
     setError(null);
   }, [provider, handleAccountsChanged, handleChainChanged]);
 
-  /**
-   * Check if wallet is already connected on mount
-   */
   useEffect(() => {
     const checkConnection = async () => {
-      // Wait for potential wallet injection
-      // Forceful wait: check for up to 3 seconds on mount (30 retries)
       await waitForProvider(30, 100);
 
       if (typeof window.ethereum !== 'undefined' || window.zerion) {
         try {
-          console.log('🔍 Checking for existing wallet connection...');
-
-          // Find provider
           const potentialProvider = findZerionProvider();
 
           if (!potentialProvider) {
-            console.log('ℹ️ No wallet detected on mount');
             return;
           }
 
@@ -298,15 +262,13 @@ export function useWallet() {
           });
 
           if (accounts && accounts.length > 0) {
-            console.log('✅ Found existing wallet connection:', accounts[0]);
             setWalletAddress(accounts[0]);
             setProvider(potentialProvider);
 
-            // Set up listeners
             potentialProvider.on('accountsChanged', handleAccountsChanged);
             potentialProvider.on('chainChanged', handleChainChanged);
           } else {
-            console.log('ℹ️ No existing connection found');
+            return;
           }
         } catch (err) {
           console.error('Error checking wallet connection:', err);
@@ -316,7 +278,6 @@ export function useWallet() {
 
     checkConnection();
 
-    // Cleanup listeners on unmount
     return () => {
       if (provider) {
         provider.removeListener('accountsChanged', handleAccountsChanged);

@@ -597,17 +597,27 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
                       <button
                         type="button"
                         className="w-full inline-flex items-center justify-center rounded-2xl border border-emerald-400/50 bg-gradient-to-tr from-emerald-400 via-teal-400 to-cyan-500 px-4 py-3 text-sm md:text-base font-bold text-white shadow-[0_10px_28px_rgba(16,185,129,0.35)] hover:shadow-[0_14px_34px_rgba(16,185,129,0.45)] active:scale-[.99] transition disabled:opacity-60"
-                        onClick={() => {
+                        onClick={async () => {
                           if (emailStep === 'enter-code') return
-                          preflightEnsureAllowedNetwork(() => {
-                            try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
-                            if (hasInjectedZerionWallet()) {
-                              // `connectWallet` links an external wallet; it doesn't authenticate a new user.
-                              // Use `login` so the connected wallet results in an authenticated Privy session.
-                              login({ loginMethods: ['wallet'] })
-                              return
+                          preflightEnsureAllowedNetwork(async () => {
+                            try {
+                              // 1. Close our custom modal so it doesn't overlap
+                              try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
+
+                              // 2. Force connect with Zerion specifically
+                              const result = await connectWith('zerion')
+
+                              // 3. After connection, trigger login to ensure signature request
+                              // This ensures the user is actually authenticated
+                              if (result?.ok) {
+                                login({ loginMethods: ['wallet'] })
+                              } else {
+                                // If connection failed, show our modal again to show the error
+                                if (dialogRef.current && !dialogRef.current.open) dialogRef.current.showModal()
+                              }
+                            } catch (e) {
+                              console.error(e)
                             }
-                            login({ loginMethods: ['wallet'] })
                           })
                         }}
                         disabled={emailStep === 'enter-code' || !ready}
