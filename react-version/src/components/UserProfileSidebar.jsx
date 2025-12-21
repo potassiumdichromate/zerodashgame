@@ -1,49 +1,169 @@
 import React, { useEffect, useState } from 'react';
 
+const BACKEND_URL = 'https://zerodashbackend.onrender.com';
+
 /**
  * UserProfileSidebar Component
  * Displays current user's stats and progress during gameplay
- * Shows: Best Score, Total Coins, Games Played, Win Rate, etc.
+ * Shows: Best Score, Total Coins, Characters, Daily Rewards, etc.
  */
 export default function UserProfileSidebar({ isVisible, walletAddress }) {
   const [userStats, setUserStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   /**
-   * Fetch user stats
-   * TODO: Replace with actual API call
+   * Fetch user profile stats from backend
    */
   const fetchUserStats = async () => {
-    setIsLoading(true);
-    
-    // Simulated data - replace with actual API
-    const mockStats = {
-      bestScore: 12450,
-      totalCoins: 45670,
-      gamesPlayed: 127,
-      totalPlayTime: '8h 32m',
-      averageScore: 8920,
-      rank: 156,
-      achievements: 12,
-      streakDays: 5,
-      level: 18,
-      xp: 3250,
-      xpToNextLevel: 5000,
-    };
+    if (!walletAddress) {
+      setIsLoading(false);
+      return;
+    }
 
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 600));
-    
-    setUserStats(mockStats);
-    setIsLoading(false);
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/player/profile`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          // Add wallet address in header or query param if needed by your backend
+          // 'X-Wallet-Address': walletAddress,
+        },
+        credentials: 'include', // Include cookies if your backend uses sessions
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch profile');
+      }
+
+      const data = await response.json();
+      
+      // Transform backend data to component format
+      const transformedStats = {
+        // Direct mappings from backend
+        bestScore: data.highScore || 0,
+        totalCoins: data.coins || 0,
+        walletAddress: data.walletAddress,
+        
+        // Character data
+        unlockedCharacters: data.characters?.unlocked?.length || 0,
+        currentCharacter: data.characters?.unlocked?.[data.characters?.currentIndex] || 'HERO1',
+        
+        // Daily reward status
+        nextRewardAt: data.dailyReward?.nextRewardAt,
+        canClaimReward: data.dailyReward?.nextRewardAt 
+          ? new Date(data.dailyReward.nextRewardAt) <= new Date()
+          : false,
+        
+        // Account info
+        accountAge: data.createdAt ? calculateAccountAge(data.createdAt) : '0d',
+        lastActive: data.updatedAt ? formatLastActive(data.updatedAt) : 'Now',
+        
+        // Calculated/derived stats (you can add these to backend later)
+        gamesPlayed: Math.floor(data.highScore / 100) || 1, // Rough estimate
+        averageScore: Math.floor(data.highScore * 0.7) || 0, // Rough estimate
+        
+        // Placeholder for future backend fields
+        level: calculateLevel(data.highScore),
+        xp: data.coins % 1000, // Use coins as temp XP
+        xpToNextLevel: 1000,
+        rank: 0, // Will be calculated from leaderboard
+        achievements: data.characters?.unlocked?.length || 0,
+        streakDays: 0, // Add to backend later
+      };
+
+      setUserStats(transformedStats);
+    } catch (err) {
+      console.error('Error fetching user profile:', err);
+      setError('Failed to load profile');
+      setUserStats(null);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   /**
-   * Initial load
+   * Calculate level based on high score
+   */
+  const calculateLevel = (highScore) => {
+    if (!highScore) return 1;
+    return Math.floor(highScore / 100) + 1;
+  };
+
+  /**
+   * Calculate account age
+   */
+  const calculateAccountAge = (createdAt) => {
+    const created = new Date(createdAt);
+    const now = new Date();
+    const diffTime = Math.abs(now - created);
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return '1 day';
+    if (diffDays < 30) return `${diffDays} days`;
+    
+    const diffMonths = Math.floor(diffDays / 30);
+    if (diffMonths === 1) return '1 month';
+    if (diffMonths < 12) return `${diffMonths} months`;
+    
+    const diffYears = Math.floor(diffMonths / 12);
+    return diffYears === 1 ? '1 year' : `${diffYears} years`;
+  };
+
+  /**
+   * Format last active time
+   */
+  const formatLastActive = (updatedAt) => {
+    const updated = new Date(updatedAt);
+    const now = new Date();
+    const diffMinutes = Math.floor((now - updated) / (1000 * 60));
+    
+    if (diffMinutes < 1) return 'Now';
+    if (diffMinutes === 1) return '1m ago';
+    if (diffMinutes < 60) return `${diffMinutes}m ago`;
+    
+    const diffHours = Math.floor(diffMinutes / 60);
+    if (diffHours === 1) return '1h ago';
+    if (diffHours < 24) return `${diffHours}h ago`;
+    
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays === 1) return '1d ago';
+    return `${diffDays}d ago`;
+  };
+
+  /**
+   * Format time until next reward
+   */
+  const getRewardTimeRemaining = () => {
+    if (!userStats?.nextRewardAt) return null;
+    
+    const now = new Date();
+    const nextReward = new Date(userStats.nextRewardAt);
+    const diff = nextReward - now;
+    
+    if (diff <= 0) return 'Ready!';
+    
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes}m`;
+  };
+
+  /**
+   * Initial load and auto-refresh
    */
   useEffect(() => {
     if (isVisible && walletAddress) {
       fetchUserStats();
+      
+      // Refresh every 30 seconds to update "last active" and reward timer
+      const interval = setInterval(fetchUserStats, 30000);
+      return () => clearInterval(interval);
     }
   }, [isVisible, walletAddress]);
 
@@ -83,6 +203,11 @@ export default function UserProfileSidebar({ isVisible, walletAddress }) {
               <p className="text-sm font-pixel text-zerion-yellow font-bold truncate">
                 {truncateAddress(walletAddress)}
               </p>
+              {userStats?.lastActive && (
+                <p className="text-xs font-pixel text-zerion-blue-light opacity-60">
+                  {userStats.lastActive}
+                </p>
+              )}
             </div>
           </div>
         </div>
@@ -93,6 +218,16 @@ export default function UserProfileSidebar({ isVisible, walletAddress }) {
             <div className="p-8 flex flex-col items-center justify-center gap-3">
               <div className="w-8 h-8 border-4 border-zerion-yellow border-t-transparent rounded-full animate-spin" />
               <p className="text-xs font-pixel text-zerion-blue-light">Loading stats...</p>
+            </div>
+          ) : error ? (
+            <div className="p-6 text-center">
+              <p className="text-xs font-pixel text-red-400 mb-3">{error}</p>
+              <button
+                onClick={fetchUserStats}
+                className="text-xs font-pixel text-zerion-yellow hover:text-white transition-colors"
+              >
+                Retry
+              </button>
             </div>
           ) : userStats ? (
             <div className="p-4 space-y-4">
@@ -114,6 +249,23 @@ export default function UserProfileSidebar({ isVisible, walletAddress }) {
                   {userStats.xp} / {userStats.xpToNextLevel} XP
                 </p>
               </div>
+
+              {/* Daily Reward Status */}
+              {userStats.nextRewardAt && (
+                <div className={`border-2 rounded-lg p-3 ${
+                  userStats.canClaimReward 
+                    ? 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-500 animate-pulse' 
+                    : 'bg-gradient-to-br from-blue-500/20 to-purple-500/20 border-blue-500'
+                }`}>
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xl">{userStats.canClaimReward ? '🎁' : '⏰'}</span>
+                    <span className="text-xs font-pixel text-zerion-blue-light">DAILY REWARD</span>
+                  </div>
+                  <p className="text-lg font-pixel text-white font-bold text-center">
+                    {getRewardTimeRemaining()}
+                  </p>
+                </div>
+              )}
 
               {/* Best Score */}
               <div className="bg-gradient-to-br from-yellow-500/20 to-orange-500/20 border-2 border-zerion-yellow rounded-lg p-3">
@@ -139,23 +291,23 @@ export default function UserProfileSidebar({ isVisible, walletAddress }) {
 
               {/* Stats Grid */}
               <div className="grid grid-cols-2 gap-2">
-                {/* Games Played */}
+                {/* Characters Unlocked */}
+                <div className="bg-zerion-blue-medium/50 border-2 border-zerion-blue rounded-lg p-2">
+                  <p className="text-xs font-pixel text-zerion-blue-light text-center mb-1">
+                    HEROES
+                  </p>
+                  <p className="text-lg font-pixel text-zerion-light font-bold text-center">
+                    {userStats.unlockedCharacters}
+                  </p>
+                </div>
+
+                {/* Games Played (Estimated) */}
                 <div className="bg-zerion-blue-medium/50 border-2 border-zerion-blue rounded-lg p-2">
                   <p className="text-xs font-pixel text-zerion-blue-light text-center mb-1">
                     GAMES
                   </p>
                   <p className="text-lg font-pixel text-zerion-light font-bold text-center">
                     {userStats.gamesPlayed}
-                  </p>
-                </div>
-
-                {/* Global Rank */}
-                <div className="bg-zerion-blue-medium/50 border-2 border-zerion-blue rounded-lg p-2">
-                  <p className="text-xs font-pixel text-zerion-blue-light text-center mb-1">
-                    RANK
-                  </p>
-                  <p className="text-lg font-pixel text-zerion-light font-bold text-center">
-                    #{userStats.rank}
                   </p>
                 </div>
 
@@ -169,33 +321,33 @@ export default function UserProfileSidebar({ isVisible, walletAddress }) {
                   </p>
                 </div>
 
-                {/* Achievements */}
+                {/* Account Age */}
                 <div className="bg-zerion-blue-medium/50 border-2 border-zerion-blue rounded-lg p-2">
                   <p className="text-xs font-pixel text-zerion-blue-light text-center mb-1">
-                    🎯 ACH
+                    🎯 AGE
                   </p>
-                  <p className="text-lg font-pixel text-zerion-light font-bold text-center">
-                    {userStats.achievements}
+                  <p className="text-xs font-pixel text-zerion-light font-bold text-center">
+                    {userStats.accountAge}
                   </p>
                 </div>
               </div>
 
-              {/* Streak */}
-              <div className="bg-gradient-to-r from-orange-500/20 to-red-500/20 border-2 border-orange-500 rounded-lg p-3">
+              {/* Current Character */}
+              <div className="bg-gradient-to-r from-purple-500/20 to-pink-500/20 border-2 border-purple-500 rounded-lg p-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-xl">🔥</span>
+                    <span className="text-xl">🦸</span>
                     <div>
-                      <p className="text-xs font-pixel text-orange-300">STREAK</p>
-                      <p className="text-sm font-pixel text-white">
-                        {userStats.streakDays} days
+                      <p className="text-xs font-pixel text-purple-300">CURRENT HERO</p>
+                      <p className="text-sm font-pixel text-white font-bold">
+                        {userStats.currentCharacter}
                       </p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs font-pixel text-orange-300">PLAYTIME</p>
-                    <p className="text-sm font-pixel text-white">
-                      {userStats.totalPlayTime}
+                    <p className="text-xs font-pixel text-purple-300">UNLOCKED</p>
+                    <p className="text-sm font-pixel text-white font-bold">
+                      {userStats.unlockedCharacters}/3
                     </p>
                   </div>
                 </div>
@@ -215,8 +367,9 @@ export default function UserProfileSidebar({ isVisible, walletAddress }) {
           <button
             onClick={fetchUserStats}
             className="w-full text-xs font-pixel text-zerion-yellow hover:text-white transition-colors"
+            disabled={isLoading}
           >
-            🔄 REFRESH STATS
+            {isLoading ? '⏳ Loading...' : '🔄 REFRESH STATS'}
           </button>
         </div>
       </div>
