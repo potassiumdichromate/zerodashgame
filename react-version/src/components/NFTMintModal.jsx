@@ -1,17 +1,28 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
+import { ethers } from 'ethers';
 import nftPassVideo from '../assets/nftpass.mp4';
 
-// Whitelist addresses (FREE MINT)
-const WHITELIST_ADDRESSES = [
-  '0x1234567890abcdef1234567890abcdef12345678',
-  '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
-  // Add more whitelist addresses here
+// ============================================
+// CONTRACT CONFIGURATION
+// ============================================
+
+const NFT_CONTRACT_ADDRESS = "0x09904F6f4013ce41dc2d7ac0fF09C26F3aD86e53";
+const BACKEND_URL = "https://zerodashbackend.onrender.com";
+
+// Minimal ABI for minting
+const NFT_ABI = [
+  "function mint(bytes32[] calldata merkleProof) external payable",
+  "function hasMinted(address account) external view returns (bool)",
+  "function isWhitelisted(address account, bytes32[] calldata proof) external view returns (bool)",
+  "function MINT_PRICE() external view returns (uint256)",
+  "function totalMinted() external view returns (uint256)"
 ];
 
 /**
- * NFTMintModal Component
+ * NFTMintModal Component with Merkle Tree Whitelist
  * Premium NFT Pass minting modal with video preview
- * Mints on 0G Blockchain - Requires Zerion Wallet
+ * Mints on 0G Blockchain - Works with Privy Wallet
  * 
  * @param {Object} props
  * @param {boolean} props.isOpen - Modal visibility state
@@ -19,11 +30,20 @@ const WHITELIST_ADDRESSES = [
  * @param {Function} props.onMintSuccess - Success callback after minting
  */
 export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
+  const { authenticated, user } = usePrivy();
+  const { wallets } = useWallets();
+  
   const [isMinting, setIsMinting] = useState(false);
   const [mintingStep, setMintingStep] = useState(0); // 0: ready, 1: processing, 2: confirming, 3: success
   const [transactionHash, setTransactionHash] = useState('');
-  const [isWhitelisted, setIsWhitelisted] = useState(false);
   const [walletAddress, setWalletAddress] = useState('');
+  const [hasMinted, setHasMinted] = useState(false);
+  
+  // Merkle whitelist states
+  const [isWhitelisted, setIsWhitelisted] = useState(false);
+  const [merkleProof, setMerkleProof] = useState([]);
+  const [whitelistChecking, setWhitelistChecking] = useState(true);
+  
   const videoRef = useRef(null);
 
   // Minting steps for UI feedback
@@ -35,25 +55,68 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
   ];
 
   /**
-   * Check if wallet is whitelisted
+   * Get wallet address from Privy
    */
   useEffect(() => {
-    const checkWhitelist = () => {
-      const storedWallet = localStorage.getItem('walletAddress');
-      setWalletAddress(storedWallet || '');
-      
-      if (storedWallet) {
-        const whitelisted = WHITELIST_ADDRESSES.some(
-          addr => addr.toLowerCase() === storedWallet.toLowerCase()
-        );
-        setIsWhitelisted(whitelisted);
+    const getWalletAddress = async () => {
+      if (authenticated && wallets.length > 0) {
+        const embeddedWallet = wallets.find((wallet) => wallet.walletClientType === 'privy');
+        if (embeddedWallet) {
+          const address = await embeddedWallet.address;
+          setWalletAddress(address);
+        }
       }
     };
 
     if (isOpen) {
-      checkWhitelist();
+      getWalletAddress();
     }
-  }, [isOpen]);
+  }, [isOpen, authenticated, wallets]);
+
+  /**
+   * Check whitelist status and mint status
+   */
+  useEffect(() => {
+    const checkStatuses = async () => {
+      if (!walletAddress) return;
+
+      setWhitelistChecking(true);
+
+      try {
+        // Check whitelist from backend
+        const whitelistResponse = await fetch(`${BACKEND_URL}/nft/proof/${walletAddress}`);
+        const whitelistData = await whitelistResponse.json();
+        
+        if (whitelistData.success) {
+          setIsWhitelisted(whitelistData.isWhitelisted);
+          setMerkleProof(whitelistData.proof || []);
+          console.log('✅ Whitelist check:', whitelistData.message);
+        }
+
+        // Check if already minted from contract
+        try {
+          const provider = new ethers.BrowserProvider(window.ethereum);
+          const contract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_ABI, provider);
+          const minted = await contract.hasMinted(walletAddress);
+          setHasMinted(minted);
+          console.log('Mint status:', minted ? 'Already minted' : 'Not minted');
+        } catch (error) {
+          console.warn('Could not check mint status:', error);
+        }
+
+      } catch (error) {
+        console.error('Error checking statuses:', error);
+        setIsWhitelisted(false);
+        setMerkleProof([]);
+      } finally {
+        setWhitelistChecking(false);
+      }
+    };
+
+    if (isOpen && walletAddress) {
+      checkStatuses();
+    }
+  }, [isOpen, walletAddress]);
 
   /**
    * Play video when modal opens
@@ -95,106 +158,129 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
   }, [isOpen]);
 
   /**
-   * Handle NFT minting process
+   * Handle NFT minting process with Merkle proof
    */
   const handleMint = async () => {
+    if (!authenticated || !walletAddress) {
+      alert('❌ Please connect your wallet first');
+      return;
+    }
+
+    if (hasMinted) {
+      alert('✅ You already minted your Zero Dash Pass NFT!');
+      return;
+    }
+
     setIsMinting(true);
     setMintingStep(1);
 
     try {
-      // Step 1: Initialize Transaction
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Step 1: Get Privy wallet provider
+      const embeddedWallet = wallets.find((wallet) => wallet.walletClientType === 'privy');
       
-      /* TODO: 0G BLOCKCHAIN INTEGRATION
-      
-      // Get wallet address
-      const walletAddress = localStorage.getItem('walletAddress');
-      
-      // Check if Zerion wallet is connected
-      if (!window.ethereum || !window.ethereum.isZerion) {
-        throw new Error('Zerion Wallet not detected. Please use Zerion Wallet to mint.');
+      if (!embeddedWallet) {
+        throw new Error('Privy wallet not found. Please reconnect.');
       }
+
+      // Get Ethereum provider from Privy
+      await embeddedWallet.switchChain(16661); // Switch to 0G Mainnet
+      const provider = await embeddedWallet.getEthereumProvider();
+      const ethersProvider = new ethers.BrowserProvider(provider);
+      const signer = await ethersProvider.getSigner();
+
+      // Connect to contract
+      const nftContract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_ABI, signer);
+
+      // Prepare transaction
+      const mintPrice = isWhitelisted ? 0 : ethers.parseEther('5');
       
-      // Connect to 0G Blockchain
-      const provider = new ethers.providers.Web3Provider(window.ethereum);
-      const signer = provider.getSigner();
-      
-      // 0G NFT Contract
-      const OG_NFT_CONTRACT_ADDRESS = '0x...'; // Your 0G contract address
-      const NFT_ABI = [...]; // Your contract ABI
-      const nftContract = new ethers.Contract(OG_NFT_CONTRACT_ADDRESS, NFT_ABI, signer);
-      
-      // Check whitelist
-      const isWhitelisted = WHITELIST_ADDRESSES.some(
-        addr => addr.toLowerCase() === walletAddress.toLowerCase()
-      );
-      
-      // Mint price: 5 0G for public, FREE for whitelist
-      const mintPrice = isWhitelisted 
-        ? ethers.utils.parseEther("0")     // FREE for whitelist
-        : ethers.utils.parseEther("5");    // 5 0G for public
-      
-      // Call mint function
-      const tx = await nftContract.mint({
+      console.log('🎨 Minting NFT...');
+      console.log('   Address:', walletAddress);
+      console.log('   Whitelisted:', isWhitelisted);
+      console.log('   Price:', isWhitelisted ? 'FREE' : '5 0G');
+      console.log('   Proof:', merkleProof);
+
+      setMintingStep(2);
+
+      // Call mint function with Merkle proof
+      const tx = await nftContract.mint(merkleProof, {
         value: mintPrice,
         gasLimit: 300000
       });
-      
-      */
-      
-      setMintingStep(2);
-      
-      // Step 2: Wait for confirmation
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      /* TODO: 0G BLOCKCHAIN INTEGRATION
-      
-      // Wait for transaction confirmation on 0G blockchain
+
+      console.log('⏳ Transaction submitted:', tx.hash);
+      setTransactionHash(tx.hash);
+
+      // Wait for confirmation
       const receipt = await tx.wait();
-      setTransactionHash(receipt.transactionHash);
-      
-      // Update backend with NFT pass status
-      const response = await fetch('https://zerodashbackend.onrender.com/player/update-nft-status', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${walletAddress}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          nftPass: true,
-          transactionHash: receipt.transactionHash,
-          blockchain: '0G',
-          mintPrice: isWhitelisted ? '0' : '5'
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to update NFT status on backend');
-      }
-      
-      */
-      
-      // Simulate transaction hash for demo
-      setTransactionHash('0x' + Math.random().toString(16).substring(2, 66));
-      
+      console.log('✅ Transaction confirmed!', receipt);
+
       setMintingStep(3);
-      
-      // Wait a moment to show success
+
+      // Update backend with NFT pass status
+      try {
+        const updateResponse = await fetch(`${BACKEND_URL}/player/nft-pass`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${walletAddress}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ 
+            walletAddress,
+            nftPass: true,
+            transactionHash: tx.hash,
+            blockchain: '0G',
+            contractAddress: NFT_CONTRACT_ADDRESS,
+            mintPrice: isWhitelisted ? '0' : '5',
+            whitelisted: isWhitelisted
+          }),
+        });
+
+        if (updateResponse.ok) {
+          console.log('✅ Backend updated with NFT status');
+        } else {
+          console.warn('⚠️  Failed to update backend, but NFT minted successfully');
+        }
+      } catch (backendError) {
+        console.warn('⚠️  Backend update error:', backendError);
+        // Don't throw - NFT is minted successfully
+      }
+
+      // Success!
+      setHasMinted(true);
+
+      // Wait to show success message
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       // Callback to parent component
       if (onMintSuccess) {
         onMintSuccess();
       }
-      
+
       // Auto-close after success
       setTimeout(() => {
         handleClose();
       }, 1000);
-      
+
     } catch (error) {
-      console.error('Minting failed:', error);
-      alert(`❌ Minting Failed\n\n${error.message || 'Transaction was rejected or failed.'}`);
+      console.error('❌ Minting failed:', error);
+      
+      let errorMessage = 'Transaction failed. Please try again.';
+      
+      if (error.code === 'ACTION_REJECTED' || error.code === 4001) {
+        errorMessage = 'Transaction cancelled by user.';
+      } else if (error.message?.includes('Already minted')) {
+        errorMessage = 'You already minted your NFT Pass!';
+        setHasMinted(true);
+      } else if (error.message?.includes('insufficient funds')) {
+        errorMessage = `Insufficient 0G balance. You need ${isWhitelisted ? '~0.0001' : '5+'} 0G.`;
+      } else if (error.message?.includes('Max supply reached')) {
+        errorMessage = 'Sorry, all NFTs have been minted!';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      alert(`❌ Minting Failed\n\n${errorMessage}`);
       setMintingStep(0);
       setIsMinting(false);
     }
@@ -283,12 +369,31 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
             </p>
           </div>
 
-          {/* Whitelist Badge */}
-          {isWhitelisted && (
+          {/* Whitelist Badge - VISIBLE INDICATOR */}
+          {!whitelistChecking && isWhitelisted && (
             <div className="absolute top-4 left-4 bg-gradient-to-r from-green-500 to-emerald-500 
                             border-3 border-green-400 rounded-lg px-4 py-2 animate-pulse">
-              <p className="text-xs font-pixel text-white font-bold">
-                ✅ WHITELISTED - FREE MINT
+              <div className="flex items-center gap-2">
+                <span className="text-lg">✅</span>
+                <div>
+                  <p className="text-xs font-pixel text-white font-bold leading-tight">
+                    WHITELISTED
+                  </p>
+                  <p className="text-[10px] font-pixel text-green-100 leading-tight">
+                    FREE MINT!
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Already Minted Badge */}
+          {hasMinted && (
+            <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 
+                            bg-gradient-to-r from-purple-500 to-pink-500 
+                            border-3 border-purple-400 rounded-lg px-6 py-3">
+              <p className="text-sm font-pixel text-white font-bold">
+                ✨ YOU OWN THIS NFT ✨
               </p>
             </div>
           )}
@@ -339,35 +444,37 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
           </div>
 
           {/* Minting Price */}
-          <div className={`bg-gradient-to-r border-3 rounded-lg p-5 ${
-            isWhitelisted
-              ? 'from-green-900/40 to-emerald-900/40 border-green-500'
-              : 'from-yellow-900/40 to-orange-900/40 border-yellow-500'
-          }`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className={`text-xs font-pixel mb-1 ${
-                  isWhitelisted ? 'text-green-300' : 'text-yellow-300'
-                }`}>
-                  {isWhitelisted ? 'WHITELIST PRICE' : 'MINT PRICE'}
-                </p>
-                {isWhitelisted ? (
-                  <>
-                    <p className="text-3xl font-pixel text-green-400 font-bold">FREE</p>
-                    <p className="text-xs font-pixel text-green-200 mt-1">
-                      <span className="line-through opacity-50">5 0G</span> → 0 0G
-                    </p>
-                  </>
-                ) : (
-                  <>
-                    <p className="text-3xl font-pixel text-zerion-yellow font-bold">5 0G</p>
-                    <p className="text-xs font-pixel text-yellow-200 mt-1">0G Blockchain Token</p>
-                  </>
-                )}
+          {!whitelistChecking && (
+            <div className={`bg-gradient-to-r border-3 rounded-lg p-5 ${
+              isWhitelisted
+                ? 'from-green-900/40 to-emerald-900/40 border-green-500'
+                : 'from-yellow-900/40 to-orange-900/40 border-yellow-500'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`text-xs font-pixel mb-1 ${
+                    isWhitelisted ? 'text-green-300' : 'text-yellow-300'
+                  }`}>
+                    {isWhitelisted ? '🎁 WHITELIST PRICE' : '💎 MINT PRICE'}
+                  </p>
+                  {isWhitelisted ? (
+                    <>
+                      <p className="text-3xl font-pixel text-green-400 font-bold">FREE</p>
+                      <p className="text-xs font-pixel text-green-200 mt-1">
+                        <span className="line-through opacity-50">5 0G</span> → 0 0G + gas
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-3xl font-pixel text-zerion-yellow font-bold">5 0G</p>
+                      <p className="text-xs font-pixel text-yellow-200 mt-1">+ gas (~0.0001 0G)</p>
+                    </>
+                  )}
+                </div>
+                <div className="text-6xl">{isWhitelisted ? '🎁' : '💎'}</div>
               </div>
-              <div className="text-6xl">{isWhitelisted ? '🎁' : '💎'}</div>
             </div>
-          </div>
+          )}
 
           {/* Minting Status */}
           {isMinting && (
@@ -397,26 +504,50 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
               {transactionHash && (
                 <div className="mt-4 bg-black/40 rounded p-3 border border-green-500/30">
                   <p className="text-xs font-pixel text-green-400 mb-1">0G Transaction Hash:</p>
-                  <p className="text-xs font-mono text-white break-all">{transactionHash}</p>
+                  <a 
+                    href={`https://explorer.0g.ai/tx/${transactionHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-mono text-blue-400 hover:text-blue-300 break-all underline"
+                  >
+                    {transactionHash}
+                  </a>
                 </div>
               )}
             </div>
           )}
 
-          {/* Zerion Wallet Requirement */}
-          {!isMinting && (
+          {/* Privy Wallet Info */}
+          {!isMinting && authenticated && (
             <div className="bg-purple-900/30 border-2 border-purple-500/50 rounded-lg p-4">
               <div className="flex items-start gap-3">
                 <span className="text-2xl">👛</span>
-                <div>
+                <div className="flex-1">
                   <p className="text-xs font-pixel text-purple-300 font-bold mb-2">
-                    ZERION WALLET REQUIRED
+                    WALLET CONNECTED
                   </p>
                   <div className="space-y-1 text-xs font-pixel text-purple-200">
-                    <p>• You need Zerion Wallet to mint the NFT</p>
-                    <p>• Social Login will not work for minting</p>
-                    <p>• The NFT will be minted on 0G Blockchain</p>
+                    <p>• Wallet: {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</p>
+                    <p>• Network: 0G Blockchain</p>
+                    <p>• Status: {whitelistChecking ? 'Checking...' : isWhitelisted ? '✅ Whitelisted' : 'Public Mint'}</p>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Not Connected Warning */}
+          {!authenticated && (
+            <div className="bg-red-900/30 border-2 border-red-500/50 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">⚠️</span>
+                <div>
+                  <p className="text-xs font-pixel text-red-300 font-bold mb-2">
+                    WALLET NOT CONNECTED
+                  </p>
+                  <p className="text-xs font-pixel text-red-200">
+                    Please connect your wallet to mint the NFT Pass
+                  </p>
                 </div>
               </div>
             </div>
@@ -434,14 +565,20 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
             
             <button
               onClick={handleMint}
-              disabled={isMinting}
-              className="flex-1 pixel-button-primary text-sm py-4"
+              disabled={isMinting || !authenticated || hasMinted || whitelistChecking}
+              className="flex-1 pixel-button-primary text-sm py-4 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isMinting 
-                ? `⏳ ${MINTING_STEPS[mintingStep].label.toUpperCase()}...` 
-                : isWhitelisted
-                  ? '🎁 MINT FREE'
-                  : '🎨 MINT FOR 5 0G'
+              {!authenticated 
+                ? '🔒 CONNECT WALLET'
+                : hasMinted
+                  ? '✅ ALREADY MINTED'
+                  : whitelistChecking
+                    ? '⏳ CHECKING...'
+                    : isMinting 
+                      ? `⏳ ${MINTING_STEPS[mintingStep].label.toUpperCase()}...` 
+                      : isWhitelisted
+                        ? '🎁 MINT FREE'
+                        : '💎 MINT FOR 5 0G'
               }
             </button>
           </div>
@@ -449,7 +586,7 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
           {/* Footer Notice */}
           <div className="text-center">
             <p className="text-xs font-pixel text-zerion-blue-light">
-              By minting, you agree to our terms and conditions
+              By minting, you agree to our terms and conditions • Powered by 0G Blockchain
             </p>
           </div>
         </div>
