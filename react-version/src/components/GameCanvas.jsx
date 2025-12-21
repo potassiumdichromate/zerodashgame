@@ -4,10 +4,11 @@ import CustomLoading from './CustomLoading';
 const BACKEND_URL = 'https://zerodashbackend.onrender.com';
 
 /**
- * GameCanvas Component - NFT-AWARE VERSION
+ * GameCanvas Component - NFT-AWARE VERSION (MOBILE PORTRAIT OPTIMIZED)
  * Manages Unity WebGL instance loading and rendering
  * Loads different game builds based on NFT ownership
  * Passes wallet address via URL parameter to Unity
+ * LOCKED TO PORTRAIT MODE ON MOBILE - NO ROTATION
  * 
  * @param {Object} props
  * @param {string} props.walletAddress - Wallet address to pass to Unity
@@ -72,7 +73,9 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
   };
 
   /**
-   * Detect device type and set appropriate dimensions
+   * Detect device type and set PORTRAIT dimensions
+   * Mobile: Always portrait, no rotation
+   * Desktop: Landscape as usual
    */
   useEffect(() => {
     const checkDevice = () => {
@@ -80,11 +83,36 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
       setIsMobile(mobile);
       
       if (mobile) {
-        // Mobile: Portrait mode
-        setDimensions({ width: 432, height: 768 });
+        // 🔥 MOBILE: PORTRAIT MODE ONLY
+        // Calculate optimal portrait dimensions for mobile
+        const maxWidth = Math.min(window.innerWidth - 40, 540); // Max 540px width with padding
+        const maxHeight = window.innerHeight - 120; // Leave space for buttons
+        
+        // Portrait aspect ratio (9:16)
+        const portraitWidth = maxWidth;
+        const portraitHeight = Math.min(maxHeight, portraitWidth * (16 / 9));
+        
+        setDimensions({ 
+          width: Math.floor(portraitWidth), 
+          height: Math.floor(portraitHeight) 
+        });
+        
+        console.log('📱 Mobile Portrait Mode:', { width: portraitWidth, height: portraitHeight });
       } else {
-        // Desktop: Landscape mode
-        setDimensions({ width: 900, height: 600 });
+        // 💻 DESKTOP: LANDSCAPE MODE
+        const maxWidth = Math.min(window.innerWidth - 100, 1200);
+        const maxHeight = window.innerHeight - 150;
+        
+        // Landscape aspect ratio (16:9)
+        const landscapeWidth = maxWidth;
+        const landscapeHeight = Math.min(maxHeight, landscapeWidth * (9 / 16));
+        
+        setDimensions({ 
+          width: Math.floor(landscapeWidth), 
+          height: Math.floor(landscapeHeight) 
+        });
+        
+        console.log('💻 Desktop Landscape Mode:', { width: landscapeWidth, height: landscapeHeight });
       }
     };
 
@@ -92,6 +120,38 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
     window.addEventListener('resize', checkDevice);
     return () => window.removeEventListener('resize', checkDevice);
   }, []);
+
+  /**
+   * Lock screen orientation to portrait on mobile
+   */
+  useEffect(() => {
+    if (!isMobile) return;
+
+    const lockOrientation = async () => {
+      try {
+        // Try Screen Orientation API
+        if (screen.orientation && screen.orientation.lock) {
+          await screen.orientation.lock('portrait');
+          console.log('✅ Screen locked to portrait mode');
+        }
+      } catch (err) {
+        console.log('ℹ️ Screen orientation lock not supported:', err.message);
+      }
+    };
+
+    lockOrientation();
+
+    // Cleanup: unlock on unmount
+    return () => {
+      if (screen.orientation && screen.orientation.unlock) {
+        try {
+          screen.orientation.unlock();
+        } catch (err) {
+          console.log('Could not unlock orientation:', err);
+        }
+      }
+    };
+  }, [isMobile]);
 
   /**
    * Unity banner display function for warnings/errors
@@ -142,7 +202,7 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
       // 🔥 SELECT BUILD URL BASED ON NFT OWNERSHIP
       const BASE_URL = hasNFT 
         ? 'https://pub-c51325b05b6848599be1cf2978bc4c0e.r2.dev/nft'   // NFT holders get premium build
-        : 'https://pub-c51325b05b6848599be1cf2978bc4c0e.r2.dev/v4';   // Free players get standard build
+        : 'https://pub-c51325b05b6848599be1cf2978bc4c0e.r2.dev/v5';   // Free players get standard build
       
       console.log(`🎮 Loading ${hasNFT ? 'PREMIUM' : 'FREE'} game build from:`, BASE_URL);
       
@@ -169,7 +229,7 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
         devicePixelRatio: 1,
       };
 
-      // Mobile viewport adjustment
+      // 🔥 MOBILE: PORTRAIT VIEWPORT (NO ROTATION)
       if (isMobile) {
         let meta = document.querySelector('meta[name="viewport"]');
         if (!meta) {
@@ -177,7 +237,8 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
           meta.name = 'viewport';
           document.getElementsByTagName('head')[0].appendChild(meta);
         }
-        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, user-scalable=no, shrink-to-fit=yes';
+        // Lock viewport to portrait, disable zoom, prevent rotation
+        meta.content = 'width=device-width, height=device-height, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=yes';
       }
 
       // Load Unity loader script
@@ -312,109 +373,148 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
   return (
     <div
       ref={containerRef}
-      className={`fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[500]
+      className={`fixed inset-0 z-[500] flex items-center justify-center
                   transition-opacity duration-500
-                  ${isVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-      style={{ 
-        width: `${dimensions.width}px`, 
-        height: `${dimensions.height}px`,
-        maxWidth: '100vw',
-        maxHeight: '100vh'
-      }}
+                  ${isVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}
+                  ${isMobile ? 'p-4' : 'p-8'}`}
     >
-      {/* Back Button */}
-      {onBack && isVisible && !isLoading && !checkingNFT && (
-        <button
-          onClick={onBack}
-          className="absolute -top-16 left-0 pixel-button-secondary text-xs px-6 py-2 z-10"
-          style={{
-            fontSize: '10px',
-            padding: '8px 16px',
-            border: '3px solid #3b82f6'
+      {/* Game Container */}
+      <div className="relative flex flex-col items-center gap-4 w-full h-full justify-center">
+        
+        {/* Top Bar: Back Button & NFT Badge */}
+        {isVisible && !isLoading && !checkingNFT && (
+          <div className="flex items-center justify-between w-full max-w-[540px] px-2">
+            {/* Back Button */}
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="pixel-button-secondary text-xs px-4 py-2"
+                style={{
+                  fontSize: isMobile ? '8px' : '10px',
+                  padding: isMobile ? '6px 12px' : '8px 16px',
+                  border: '3px solid #3b82f6'
+                }}
+              >
+                ← BACK
+              </button>
+            )}
+
+            {/* NFT Status Badge */}
+            <div className={`
+              px-3 py-1.5 rounded-lg border-3 font-pixel text-xs font-bold
+              ${hasNFT 
+                ? 'bg-gradient-to-r from-yellow-500 to-orange-500 border-yellow-400 text-white' 
+                : 'bg-gradient-to-r from-gray-600 to-gray-700 border-gray-500 text-gray-200'
+              }
+            `}
+            style={{ fontSize: isMobile ? '8px' : '10px' }}
+            >
+              {hasNFT ? '🎫 PREMIUM' : '🎮 FREE'}
+            </div>
+          </div>
+        )}
+
+        {/* Unity Canvas Container */}
+        <div 
+          className="relative flex-shrink-0"
+          style={{ 
+            width: `${dimensions.width}px`, 
+            height: `${dimensions.height}px`,
+            maxWidth: '100%',
+            maxHeight: '100%'
           }}
         >
-          ← BACK TO MENU
-        </button>
-      )}
+          {/* Unity Canvas */}
+          <canvas
+            ref={canvasRef}
+            id="unity-canvas"
+            width={dimensions.width}
+            height={dimensions.height}
+            tabIndex="-1"
+            className="border-4 border-zerion-yellow block"
+            style={{ 
+              boxShadow: '0 0 40px rgba(255, 215, 0, 0.4)',
+              width: '100%',
+              height: '100%',
+              imageRendering: isMobile ? 'pixelated' : 'auto',
+              touchAction: 'none', // Prevent mobile browser gestures
+            }}
+          />
 
-      {/* NFT Status Badge (Top Right) */}
-      {isVisible && !checkingNFT && (
-        <div className="absolute -top-16 right-0 z-10">
-          <div className={`
-            px-4 py-2 rounded-lg border-3 font-pixel text-xs font-bold
-            ${hasNFT 
-              ? 'bg-gradient-to-r from-yellow-500 to-orange-500 border-yellow-400 text-white' 
-              : 'bg-gradient-to-r from-gray-600 to-gray-700 border-gray-500 text-gray-200'
-            }
-          `}>
-            {hasNFT ? '🎫 PREMIUM' : '🎮 FREE'}
-          </div>
+          {/* NFT Checking Screen */}
+          {checkingNFT && isVisible && (
+            <div className="absolute inset-0 bg-zerion-blue-dark/95 border-4 border-zerion-yellow flex items-center justify-center">
+              <div className="text-center px-4">
+                <div className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-4 border-4 border-zerion-yellow border-t-transparent rounded-full animate-spin" />
+                <p className="text-base md:text-lg font-pixel text-zerion-yellow font-bold mb-2">
+                  Checking NFT Pass...
+                </p>
+                <p className="text-xs font-pixel text-zerion-blue-light">
+                  Loading your game experience
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Custom Loading Screen */}
+          {isLoading && <CustomLoading progress={loadingProgress} isMobile={isMobile} />}
+
+          {/* Error Display */}
+          {error && (
+            <div className="absolute inset-0 flex items-center justify-center bg-black/80 p-4">
+              <div className="bg-red-900/90 border-4 border-red-500 p-4 text-xs max-w-sm animate-shake">
+                <p className="font-pixel text-white mb-2">⚠️ {error}</p>
+                <button
+                  onClick={() => {
+                    setError(null);
+                    loadUnity();
+                  }}
+                  className="pixel-button-secondary w-full text-xs"
+                >
+                  🔄 Retry
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
-
-      {/* Unity Canvas */}
-      <canvas
-        ref={canvasRef}
-        id="unity-canvas"
-        width={dimensions.width}
-        height={dimensions.height}
-        tabIndex="-1"
-        className="border-4 border-zerion-yellow block"
-        style={{ 
-          boxShadow: '0 0 40px rgba(255, 215, 0, 0.4)',
-          width: `${dimensions.width}px`,
-          height: `${dimensions.height}px`,
-          imageRendering: isMobile ? 'pixelated' : 'auto'
-        }}
-      />
-
-      {/* NFT Checking Screen */}
-      {checkingNFT && isVisible && (
-        <div className="absolute inset-0 bg-zerion-blue-dark/95 border-4 border-zerion-yellow flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-16 h-16 mx-auto mb-4 border-4 border-zerion-yellow border-t-transparent rounded-full animate-spin" />
-            <p className="text-lg font-pixel text-zerion-yellow font-bold mb-2">
-              Checking NFT Pass...
-            </p>
-            <p className="text-xs font-pixel text-zerion-blue-light">
-              Loading your game experience
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* Custom Loading Screen */}
-      {isLoading && <CustomLoading progress={loadingProgress} isMobile={isMobile} />}
-
-      {/* Error Display */}
-      {error && (
-        <div className="absolute top-full left-1/2 -translate-x-1/2 mt-5 max-w-md">
-          <div className="bg-red-900/90 border-4 border-red-500 p-4 text-xs animate-shake">
-            <p className="font-pixel text-white mb-2">⚠️ {error}</p>
-            <button
-              onClick={() => {
-                setError(null);
-                loadUnity();
-              }}
-              className="pixel-button-secondary w-full text-xs"
-            >
-              🔄 Retry
-            </button>
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* Unity Warning Banner */}
       <div id="unity-warning" className="fixed bottom-5 left-1/2 -translate-x-1/2 max-w-2xl z-[3000]" />
 
       {/* Debug Info (Development Only) */}
       {import.meta.env.DEV && isVisible && (
-        <div className="fixed bottom-4 left-4 bg-black/80 text-white text-xs px-3 py-2 rounded font-pixel z-[9999] space-y-1">
+        <div className="fixed bottom-4 left-4 bg-black/80 text-white text-[8px] md:text-xs px-2 md:px-3 py-1 md:py-2 rounded font-pixel z-[9999] space-y-1">
           <div>{isMobile ? '📱 Mobile' : '💻 Desktop'} - {dimensions.width}x{dimensions.height}</div>
           <div>🎫 NFT: {hasNFT ? 'PREMIUM ✅' : 'FREE'}</div>
           <div>📍 Build: {hasNFT ? '/nft' : '/v4'}</div>
           <div>👛 Wallet: {localStorage.getItem('walletAddress')?.slice(0, 10)}...</div>
+          <div>🔒 Orientation: {isMobile ? 'Portrait Locked' : 'Landscape'}</div>
         </div>
+      )}
+
+      {/* Rotation Warning for Mobile (if user tries to rotate) */}
+      {isMobile && (
+        <style jsx>{`
+          @media screen and (orientation: landscape) and (max-width: 768px) {
+            body::after {
+              content: '📱 Please rotate your device to portrait mode';
+              position: fixed;
+              top: 50%;
+              left: 50%;
+              transform: translate(-50%, -50%);
+              background: rgba(0, 0, 0, 0.95);
+              color: white;
+              padding: 2rem;
+              border-radius: 1rem;
+              font-family: 'Press Start 2P', monospace;
+              font-size: 0.8rem;
+              text-align: center;
+              z-index: 99999;
+              border: 4px solid #f59e0b;
+            }
+          }
+        `}</style>
       )}
     </div>
   );
