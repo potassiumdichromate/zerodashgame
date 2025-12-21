@@ -383,6 +383,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
 
   // Wallet detection state
   const [isDetectingWallet, setIsDetectingWallet] = useState(true)
+  const [isConnecting, setIsConnecting] = useState(false)
 
   useEffect(() => {
     // Check device type
@@ -645,38 +646,56 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
                       <button
                         type="button"
                         className="w-full inline-flex items-center justify-center rounded-2xl border border-emerald-400/50 bg-gradient-to-tr from-emerald-400 via-teal-400 to-cyan-500 px-4 py-3 text-sm md:text-base font-bold text-white shadow-[0_10px_28px_rgba(16,185,129,0.35)] hover:shadow-[0_14px_34px_rgba(16,185,129,0.45)] active:scale-[.99] transition disabled:opacity-60"
-                        onClick={() => {
+                        onClick={async () => {
                           if (emailStep === 'enter-code') return
+                          if (isConnecting) return
 
-                          // Skip async network check to ensure synchronous user gesture
-                          // Deep links will block if we await anything here
+                          setIsConnecting(true)
+                          setError('') // Clear previous errors
 
-                          // Close the custom modal so Privy's modal can show up (z-index fix)
-                          try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
+                          try {
+                            // Close the custom modal so Privy's modal can show up (z-index fix)
+                            try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
 
-                          const isMobile = window.innerWidth < 500
+                            const isMobile = window.innerWidth < 500
 
-                          // Mobile-Specific Force Logic
-                          if (isMobile && hasInjectedZerionWallet()) {
-                            // "Force" the Zerion connection by calling the specific connector
-                            // This behaves exactly like clicking "Zerion" in the wallet list
-                            connectWith('zerion')
-                            return
+                            // Mobile-Specific Force Logic
+                            if (isMobile && hasInjectedZerionWallet()) {
+                              // "Force" the Zerion connection by calling the specific connector
+                              // This behaves exactly like clicking "Zerion" in the wallet list
+                              await connectWith('zerion')
+                              return
+                            }
+
+                            // Desktop or Generic: Show the list of wallets
+                            login({ loginMethods: ['wallet'] })
+                          } catch (err: any) {
+                            console.error('Wallet connection error:', err)
+                            // Show user-friendly message for common errors
+                            if (String(err).includes('existed_auth_flow')) {
+                              setError('Connection already in progress. Please try again.')
+                            } else {
+                              setError('Connection failed. Please try again.')
+                            }
+                            // Re-open modal if it closed and failed (optional, but good UX if we want them to retry)
+                            if (dialogRef.current && !dialogRef.current.open) dialogRef.current.showModal()
+                          } finally {
+                            setIsConnecting(false)
                           }
-
-                          // Desktop or Generic: Show the list of wallets
-                          login({ loginMethods: ['wallet'] })
                         }}
-                        disabled={emailStep === 'enter-code' || !ready || isDetectingWallet}
+                        disabled={emailStep === 'enter-code' || !ready || isDetectingWallet || isConnecting}
                       >
                         <span className="mr-2 inline-flex items-center">
-                          {isDetectingWallet ? (
+                          {isDetectingWallet || isConnecting ? (
                             <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
                           ) : (
                             <WalletIcon />
                           )}
                         </span>
-                        <span>{isDetectingWallet ? 'Detecting Wallet...' : 'Connect Wallet'}</span>
+                        <span>
+                          {isDetectingWallet ? 'Detecting Wallet...' :
+                            isConnecting ? 'Connecting...' : 'Connect Wallet'}
+                        </span>
                       </button>
 
                       <GoogleButton
