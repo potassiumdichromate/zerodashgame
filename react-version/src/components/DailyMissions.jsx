@@ -184,7 +184,7 @@ export default function DailyMissions() {
   const handleClaimReward = async (mission) => {
     if (mission.type === 'daily_reward') {
       // TODO: Add API call to claim daily reward
-      alert(`🎁 Daily reward claimed!\n\nReward: ${mission.reward}\n\n💡 Add your claim logic to handleClaimReward()`);
+      alert(`🎁 Daily reward claimed!\n\nReward: ${mission.reward}\n\n💡 Reward Coming Soon`);
       
       // Refresh player data after claiming
       fetchPlayerData();

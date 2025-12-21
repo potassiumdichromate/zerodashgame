@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import NFTMintModal from './NFTMintModal';
 
 const BACKEND_URL = 'https://zerodashbackend.onrender.com';
 
 /**
  * NFTPassStatus Component - BACKEND INTEGRATED
  * Shows Zero Dash Pass status (Active/Inactive) based on real backend data
- * If inactive, shows "Mint Now" button
+ * If inactive, shows "Mint Now" button which opens minting modal
  * Displays at the top of menu screen
  * 
  * @param {string} walletAddress - User's wallet address (optional, will use localStorage)
@@ -14,6 +15,7 @@ export default function NFTPassStatus({ walletAddress }) {
   const [hasNFT, setHasNFT] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
   const [error, setError] = useState(null);
+  const [showMintModal, setShowMintModal] = useState(false);
 
   /**
    * Check if user owns Zero Dash Pass NFT from backend
@@ -71,38 +73,19 @@ export default function NFTPassStatus({ walletAddress }) {
   }, [walletAddress]);
 
   /**
-   * Handle mint button click
+   * Handle mint button click - Opens modal
    */
   const handleMintClick = () => {
-    // TODO: Integrate NFT minting logic
-    console.log('Mint NFT clicked');
-    
-    /* EXAMPLE BLOCKCHAIN INTEGRATION:
-    
-    try {
-      const tx = await nftContract.mint({ value: mintPrice });
-      await tx.wait();
-      
-      // Update backend
-      await fetch(`${BACKEND_URL}/player/update-nft-status`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${walletAddress}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ nftPass: true }),
-      });
-      
-      // Refresh status
-      checkNFTOwnership();
-      
-    } catch (error) {
-      console.error('Minting failed:', error);
-    }
-    
-    */
-    
-    alert('🎨 NFT Minting\n\nMinting is not active currently.\n\n💡 Add your blockchain minting logic in handleMintClick()');
+    setShowMintModal(true);
+  };
+
+  /**
+   * Handle successful minting
+   */
+  const handleMintSuccess = () => {
+    console.log('✅ NFT Minted Successfully!');
+    // Refresh NFT status
+    checkNFTOwnership();
   };
 
   if (isChecking) {
@@ -141,7 +124,16 @@ export default function NFTPassStatus({ walletAddress }) {
   }
 
   return (
-    <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150]">
+    <>
+      {/* NFT Mint Modal */}
+      <NFTMintModal
+        isOpen={showMintModal}
+        onClose={() => setShowMintModal(false)}
+        onMintSuccess={handleMintSuccess}
+      />
+
+      {/* NFT Pass Status Banner */}
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150]">
       <div
         className={`
           px-6 py-3 rounded-lg border-4 transition-all duration-300
@@ -254,6 +246,7 @@ export default function NFTPassStatus({ walletAddress }) {
           }
         }
       `}</style>
-    </div>
+      </div>
+    </>
   );
 }
