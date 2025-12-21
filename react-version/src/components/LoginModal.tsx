@@ -3,7 +3,6 @@ import {
   useConnectWallet,
   useLoginWithEmail,
   useLoginWithOAuth,
-  useLogin,
   usePrivy,
   useCreateWallet,
 } from '@privy-io/react-auth'
@@ -75,10 +74,6 @@ function formatPrivyError(err: any): string {
   return code || 'Failed to connect wallet'
 }
 
-function isGenericConnectWalletError(code?: string): boolean {
-  return Boolean(code && code.includes('generic_connect_wallet_error'))
-}
-
 /**
  * Helper to poll for provider injection (Critical for mobile)
  */
@@ -131,7 +126,7 @@ const MailIcon = ({ size = 18 }: { size?: number }) => (
   </svg>
 )
 
-type WalletId = 'metamask' | 'coinbase_wallet' | 'okx_wallet' | 'zerion'
+type WalletId = 'zerion'
 
 function DividerOr() {
   return (
@@ -296,7 +291,7 @@ function WalletPickerScrollable({
   return (
     <div className="grid gap-2">
       <div className="rounded-xl border border-white/15 bg-white/5 p-3 text-sm text-white/80">
-        Choose a wallet to continue
+        Zerion wallet required
       </div>
 
       <div className="max-h-[48vh] overflow-y-auto pr-1">
@@ -307,9 +302,6 @@ function WalletPickerScrollable({
           .wallet-scroll:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.35); }
         `}</style>
         <div className="wallet-scroll grid gap-2">
-          <WalletRow label="MetaMask" hint="Browser Extension" onClick={() => connectWith('metamask')} />
-          <WalletRow label="Coinbase Wallet" hint="App / Extension" onClick={() => connectWith('coinbase_wallet')} />
-          <WalletRow label="OKX" hint="App / Extension" onClick={() => connectWith('okx_wallet')} />
           <WalletRow label="Zerion" hint="App / Extension" onClick={() => connectWith('zerion')} />
         </div>
       </div>
@@ -378,9 +370,6 @@ function CreateWalletPanel({
 
       <div className="grid gap-2 opacity-60">
         <div className="grid gap-2">
-          <WalletRow label="MetaMask" />
-          <WalletRow label="Coinbase Wallet" />
-          <WalletRow label="OKX" />
           <WalletRow label="Zerion" />
         </div>
         <GoogleButton onClick={() => { }} disabled />
@@ -434,8 +423,6 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
     // onSuccess: () => onClose?.(), // REMOVED: Do not auto-close. Let the auth effect handle it.
     onError: (err: any) => setError(formatPrivyError(err)),
   })
-
-  const { login } = useLogin()
 
   const { initOAuth, loading: oauthLoading } = useLoginWithOAuth({
     onComplete: async () => {
@@ -678,60 +665,20 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
                           setError('') // Clear previous errors
 
                           try {
-                            // Close the custom modal ONLY for Desktop to let Privy modal show.
-                            // For Mobile, we keep it open while switching apps to ensure stability.
+                            // Close the custom modal ONLY for Desktop to avoid z-index issues.
+                            // For Mobile, keep it open while switching apps.
                             const isMobile = window.innerWidth < 500
                             if (!isMobile) {
                               try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
                             }
 
-                            // Mobile: Always deep-link to Zerion immediately to keep the action
-                            // within the user gesture.
-                            if (isMobile) {
-                              const result = await connectWith('zerion')
-
-                              if (result?.ok) {
-                                // SUCCESS! Now trigger the LOGIN (Signature) flow.
-                                // We close our modal NOW to let the Signature modal (if any) show up.
-                                try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
-                                login({ loginMethods: ['wallet'] })
-                                return
-                              }
-
-                              if (result?.ok === false && isGenericConnectWalletError(result.code)) {
-                                setError('')
-                                try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
-                                login({ loginMethods: ['wallet'] })
-                              }
-                              return
+                            const result = await connectWith('zerion')
+                            if (result?.ok === false && dialogRef.current && !dialogRef.current.open) {
+                              dialogRef.current.showModal()
                             }
-
-                            // Mobile: Always deep-link to Zerion immediately to keep the action
-                            // within the user gesture.
-                            if (isMobile) {
-                              const result = await connectWith('zerion')
-
-                              if (result?.ok) {
-                                // SUCCESS! Now trigger the LOGIN (Signature) flow.
-                                // Since we are now connected, this should prompt for signature.
-                                login({ loginMethods: ['wallet'] })
-                                return
-                              }
-
-                              if (result?.ok === false && isGenericConnectWalletError(result.code)) {
-                                setError('')
-                                login({ loginMethods: ['wallet'] })
-                              }
-                              return
-                            }
-
-                            // Desktop or Generic: Show the list of wallets
-                            login({ loginMethods: ['wallet'] })
                           } catch (err: any) {
                             console.error('Wallet connection error:', err)
-                            // Show user-friendly message for common errors
                             setError(formatPrivyError(err))
-                            // Re-open modal if it closed and failed (optional, but good UX if we want them to retry)
                             if (dialogRef.current && !dialogRef.current.open) dialogRef.current.showModal()
                           } finally {
                             setIsConnecting(false)
