@@ -93,7 +93,7 @@ const MailIcon = ({ size = 18 }: { size?: number }) => (
   </svg>
 )
 
-type WalletId = 'metamask' | 'coinbase_wallet' | 'okx_wallet' | 'zerion'
+type WalletId = 'zerion'
 
 function DividerOr() {
   return (
@@ -269,9 +269,6 @@ function WalletPickerScrollable({
           .wallet-scroll:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.35); }
         `}</style>
         <div className="wallet-scroll grid gap-2">
-          <WalletRow label="MetaMask" hint="Browser Extension" onClick={() => connectWith('metamask')} />
-          <WalletRow label="Coinbase Wallet" hint="App / Extension" onClick={() => connectWith('coinbase_wallet')} />
-          <WalletRow label="OKX" hint="App / Extension" onClick={() => connectWith('okx_wallet')} />
           <WalletRow label="Zerion" hint="App / Extension" onClick={() => connectWith('zerion')} />
         </div>
       </div>
@@ -340,9 +337,6 @@ function CreateWalletPanel({
 
       <div className="grid gap-2 opacity-60">
         <div className="grid gap-2">
-          <WalletRow label="MetaMask" />
-          <WalletRow label="Coinbase Wallet" />
-          <WalletRow label="OKX" />
           <WalletRow label="Zerion" />
         </div>
         <GoogleButton onClick={() => { }} disabled />
@@ -603,17 +597,35 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
                       <button
                         type="button"
                         className="w-full inline-flex items-center justify-center rounded-2xl border border-emerald-400/50 bg-gradient-to-tr from-emerald-400 via-teal-400 to-cyan-500 px-4 py-3 text-sm md:text-base font-bold text-white shadow-[0_10px_28px_rgba(16,185,129,0.35)] hover:shadow-[0_14px_34px_rgba(16,185,129,0.45)] active:scale-[.99] transition disabled:opacity-60"
-                        onClick={() => {
+                        onClick={async () => {
                           if (emailStep === 'enter-code') return
-                          preflightEnsureAllowedNetwork(() => {
-                            try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
-                            if (hasInjectedZerionWallet()) {
-                              // `connectWallet` links an external wallet; it doesn't authenticate a new user.
-                              // Use `login` so the connected wallet results in an authenticated Privy session.
-                              login({ loginMethods: ['wallet'] })
-                              return
+                          preflightEnsureAllowedNetwork(async () => {
+                            try {
+                              // 1. Close our custom modal so it doesn't overlap
+                              try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
+
+                              // 2. Force connect with Zerion specifically
+                              const result = await connectWith('zerion')
+
+                              // 3. After connection, trigger login to ensure signature request.
+                              // IMPORTANT: Even if connectWith FAILS (e.g. "Wallet already detected" or "existed_auth_flow"),
+                              // we MUST try to login() to prompt for the signature if the wallet is indeed ready.
+                              if (result?.ok) {
+                                // @ts-ignore
+                                login({ loginMethods: ['wallet'], walletList: ['zerion'] })
+                              } else {
+                                // If connection 'failed', it might just mean we are already linked.
+                                // Try logging in anyway.
+                                console.warn('Connection result not OK, attempting login anyway (fallback)...')
+                                // @ts-ignore
+                                login({ loginMethods: ['wallet'], walletList: ['zerion'] })
+                              }
+                            } catch (e) {
+                              console.error('Overall connect flow error', e)
+                              // Final fallback
+                              // @ts-ignore
+                              login({ loginMethods: ['wallet'], walletList: ['zerion'] })
                             }
-                            login({ loginMethods: ['wallet'] })
                           })
                         }}
                         disabled={emailStep === 'enter-code' || !ready}
