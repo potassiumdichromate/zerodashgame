@@ -16,20 +16,9 @@ const hasValidPrivyAppId =
 const privyConfig = {
   appearance: {
     theme: 'dark',
-    walletChainType: 'ethereum-only',
-    walletList: [
-      // 'metamask',
-      "zerion",
-      // 'coinbase_wallet',
-      // 'rainbow',
-      // 'phantom',
-      // 'zerion',
-      // 'cryptocom',
-      // 'uniswap',
-      // 'okx_wallet',
-      // 'universal_profile',
-    ],
   },
+  walletChainType: 'ethereum-only',
+  walletList: ['zerion'],
   embeddedWallets: {
     createOnLogin: 'users-without-wallets',
   },
