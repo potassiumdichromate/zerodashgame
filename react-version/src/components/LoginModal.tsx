@@ -59,6 +59,26 @@ function hasInjectedZerionWallet(): boolean {
   return providers.some((p: any) => Boolean(p?.isZerion))
 }
 
+function getPrivyErrorCode(err: any): string {
+  if (!err) return ''
+  return String(err?.code ?? err?.error ?? err?.message ?? err)
+}
+
+function formatPrivyError(err: any): string {
+  const code = getPrivyErrorCode(err)
+  if (code.includes('generic_connect_wallet_error')) {
+    return 'Wallet connection failed. If you are on mobile, make sure Zerion is installed and unlocked, then tap Connect Wallet again.'
+  }
+  if (code.includes('existed_auth_flow')) {
+    return 'Connection already in progress. Please try again.'
+  }
+  return code || 'Failed to connect wallet'
+}
+
+function isGenericConnectWalletError(code?: string): boolean {
+  return Boolean(code && code.includes('generic_connect_wallet_error'))
+}
+
 /**
  * Helper to poll for provider injection (Critical for mobile)
  */
@@ -412,7 +432,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
 
   const { connectWallet } = useConnectWallet({
     onSuccess: () => onClose?.(),
-    onError: (err: any) => setError((err?.message ?? err?.code ?? String(err)) || 'Failed to connect wallet'),
+    onError: (err: any) => setError(formatPrivyError(err)),
   })
 
   const { login } = useLogin()
@@ -478,10 +498,12 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
       try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
 
       await connectWallet({ walletList: [wallet] })
+      return { ok: true as const }
     } catch (err: any) {
       // eslint-disable-next-line no-console
       console.error('connectWith error', err)
-      setError(err?.message || 'Failed to connect wallet')
+      setError(formatPrivyError(err))
+      return { ok: false as const, code: getPrivyErrorCode(err) }
     }
   }
 
@@ -664,7 +686,11 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
                             // Mobile: Always deep-link to Zerion immediately to keep the action
                             // within the user gesture (prevents first-time block on mobile).
                             if (isMobile) {
-                              await connectWith('zerion')
+                              const result = await connectWith('zerion')
+                              if (result?.ok === false && isGenericConnectWalletError(result.code)) {
+                                setError('')
+                                login({ loginMethods: ['wallet'] })
+                              }
                               return
                             }
 
@@ -673,11 +699,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
                           } catch (err: any) {
                             console.error('Wallet connection error:', err)
                             // Show user-friendly message for common errors
-                            if (String(err).includes('existed_auth_flow')) {
-                              setError('Connection already in progress. Please try again.')
-                            } else {
-                              setError('Connection failed. Please try again.')
-                            }
+                            setError(formatPrivyError(err))
                             // Re-open modal if it closed and failed (optional, but good UX if we want them to retry)
                             if (dialogRef.current && !dialogRef.current.open) dialogRef.current.showModal()
                           } finally {
