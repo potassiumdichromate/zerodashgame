@@ -1,41 +1,57 @@
 import React, { useEffect, useState } from 'react';
 
+const BACKEND_URL = 'https://zerodashbackend.onrender.com';
+const REFRESH_INTERVAL = 10000; // 10 seconds
+
+/**
+ * Truncate wallet address for display
+ */
+const truncateAddress = (address) => {
+  if (!address || address.length < 10) return address;
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+};
+
 /**
  * RealTimeLeaderboardSidebar Component
  * Displays live leaderboard during gameplay
  * Shows top 10 players with their scores
- * Updates in real-time (simulated for now)
+ * Updates in real-time
  */
 export default function RealTimeLeaderboardSidebar({ isVisible, currentUserAddress }) {
   const [leaderboard, setLeaderboard] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   /**
-   * Fetch leaderboard data
-   * TODO: Replace with actual API call
+   * Fetch leaderboard data from backend
    */
   const fetchLeaderboard = async () => {
-    setIsLoading(true);
-    
-    // Simulated data - replace with actual API
-    const mockData = [
-      { rank: 1, address: '0x1a2b...3c4d', score: 15420, isOnline: true },
-      { rank: 2, address: '0x5e6f...7g8h', score: 14850, isOnline: true },
-      { rank: 3, address: '0x9i0j...1k2l', score: 13290, isOnline: false },
-      { rank: 4, address: '0x3m4n...5o6p', score: 12100, isOnline: true },
-      { rank: 5, address: '0x7q8r...9s0t', score: 11450, isOnline: true },
-      { rank: 6, address: '0x1u2v...3w4x', score: 10800, isOnline: false },
-      { rank: 7, address: '0x5y6z...7a8b', score: 9950, isOnline: true },
-      { rank: 8, address: '0x9c0d...1e2f', score: 9200, isOnline: false },
-      { rank: 9, address: '0x3g4h...5i6j', score: 8750, isOnline: true },
-      { rank: 10, address: '0x7k8l...9m0n', score: 8100, isOnline: false },
-    ];
+    try {
+      const response = await fetch(`${BACKEND_URL}/player/leaderboard?limit=10`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch leaderboard');
+      }
 
-    // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    setLeaderboard(mockData);
-    setIsLoading(false);
+      const data = await response.json();
+      
+      // Transform backend data to component format
+      const formattedData = data.map((player, index) => ({
+        rank: index + 1,
+        address: truncateAddress(player.walletAddress),
+        fullAddress: player.walletAddress,
+        score: player.highScore,
+        isOnline: true, // You can add online status from backend later
+      }));
+
+      setLeaderboard(formattedData);
+      setError(null);
+    } catch (err) {
+      console.error('Error fetching leaderboard:', err);
+      setError('Failed to load');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   /**
@@ -46,7 +62,7 @@ export default function RealTimeLeaderboardSidebar({ isVisible, currentUserAddre
       fetchLeaderboard();
       
       // Refresh every 10 seconds
-      const interval = setInterval(fetchLeaderboard, 10000);
+      const interval = setInterval(fetchLeaderboard, REFRESH_INTERVAL);
       return () => clearInterval(interval);
     }
   }, [isVisible]);
@@ -69,6 +85,21 @@ export default function RealTimeLeaderboardSidebar({ isVisible, currentUserAddre
     if (rank === 2) return '🥈';
     if (rank === 3) return '🥉';
     return '•';
+  };
+
+  /**
+   * Check if address matches current user
+   */
+  const isCurrentUser = (fullAddress) => {
+    if (!currentUserAddress || !fullAddress) return false;
+    
+    // Handle truncated addresses
+    if (currentUserAddress.includes('...')) {
+      return truncateAddress(fullAddress) === currentUserAddress;
+    }
+    
+    // Handle full addresses (case-insensitive)
+    return fullAddress.toLowerCase() === currentUserAddress.toLowerCase();
   };
 
   if (!isVisible) return null;
@@ -101,17 +132,33 @@ export default function RealTimeLeaderboardSidebar({ isVisible, currentUserAddre
               <div className="w-8 h-8 border-4 border-zerion-yellow border-t-transparent rounded-full animate-spin" />
               <p className="text-xs font-pixel text-zerion-blue-light">Loading...</p>
             </div>
+          ) : error ? (
+            <div className="p-6 text-center">
+              <p className="text-xs font-pixel text-red-400 mb-3">{error}</p>
+              <button
+                onClick={fetchLeaderboard}
+                className="text-xs font-pixel text-zerion-yellow hover:text-zerion-yellow-glow"
+              >
+                Retry
+              </button>
+            </div>
+          ) : leaderboard.length === 0 ? (
+            <div className="p-8 text-center">
+              <p className="text-xs font-pixel text-zerion-blue-light">
+                No players yet
+              </p>
+            </div>
           ) : (
             <div className="p-2">
               {leaderboard.map((player) => {
-                const isCurrentUser = player.address === currentUserAddress;
+                const isCurrent = isCurrentUser(player.fullAddress);
                 
                 return (
                   <div
                     key={player.rank}
                     className={`
                       mb-2 p-3 rounded border-2 transition-all duration-200
-                      ${isCurrentUser 
+                      ${isCurrent
                         ? 'bg-zerion-yellow/20 border-zerion-yellow animate-pulse' 
                         : 'bg-zerion-blue-medium/50 border-zerion-blue hover:bg-zerion-blue-medium/70'
                       }
@@ -129,8 +176,11 @@ export default function RealTimeLeaderboardSidebar({ isVisible, currentUserAddre
                       {/* Address */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1">
-                          <p className="text-xs font-pixel text-zerion-light truncate">
-                            {isCurrentUser ? '👤 YOU' : player.address}
+                          <p 
+                            className="text-xs font-pixel text-zerion-light truncate"
+                            title={player.fullAddress}
+                          >
+                            {isCurrent ? '👤 YOU' : player.address}
                           </p>
                           {player.isOnline && (
                             <div className="w-1.5 h-1.5 bg-green-400 rounded-full flex-shrink-0" />
@@ -155,7 +205,7 @@ export default function RealTimeLeaderboardSidebar({ isVisible, currentUserAddre
         {/* Footer */}
         <div className="bg-zerion-blue-dark/80 p-3 border-t-4 border-zerion-blue">
           <p className="text-xs font-pixel text-zerion-blue-light text-center">
-            Updates every 10s
+            Updates every {REFRESH_INTERVAL / 1000}s
           </p>
         </div>
       </div>

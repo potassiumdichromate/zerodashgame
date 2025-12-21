@@ -1,18 +1,14 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 
-// Dummy leaderboard data
-const LEADERBOARD_DATA = [
-  { rank: 1, player: '0x7a9f...3c2d', score: 152300 },
-  { rank: 2, player: '0x4b2e...8f1a', score: 143750 },
-  { rank: 3, player: '0x9c5d...2b4e', score: 138200 },
-  { rank: 4, player: '0x3e8a...7d9f', score: 127650 },
-  { rank: 5, player: '0x6d1f...4a8c', score: 119800 },
-  { rank: 6, player: '0x2a7b...9e3f', score: 112450 },
-  { rank: 7, player: '0x8f4c...1d6b', score: 108900 },
-  { rank: 8, player: '0x5c9e...6a2d', score: 102350 },
-  { rank: 9, player: '0x1d3a...8f7c', score: 98700 },
-  { rank: 10, player: '0xa6f2...3b9e', score: 94150 },
-];
+const BACKEND_URL = 'https://zerodashbackend.onrender.com';
+
+/**
+ * Truncate wallet address for display
+ */
+const truncateAddress = (address) => {
+  if (!address || address.length < 10) return address;
+  return `${address.slice(0, 6)}...${address.slice(-4)}`;
+};
 
 /**
  * Leaderboard Component
@@ -23,6 +19,53 @@ const LEADERBOARD_DATA = [
  * @param {Function} props.onClose - Callback to close modal
  */
 export default function Leaderboard({ isOpen, onClose }) {
+  const [leaderboardData, setLeaderboardData] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  /**
+   * Fetch leaderboard data from backend
+   */
+  const fetchLeaderboard = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/player/leaderboard?limit=50`);
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch leaderboard');
+      }
+
+      const data = await response.json();
+      
+      // Transform backend data to component format with ranks
+      const formattedData = data.map((player, index) => ({
+        rank: index + 1,
+        player: truncateAddress(player.walletAddress),
+        fullAddress: player.walletAddress,
+        score: player.highScore,
+      }));
+
+      setLeaderboardData(formattedData);
+    } catch (err) {
+      console.error('Error fetching leaderboard:', err);
+      setError('Failed to load leaderboard. Please try again.');
+      setLeaderboardData([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  /**
+   * Fetch data when modal opens
+   */
+  useEffect(() => {
+    if (isOpen) {
+      fetchLeaderboard();
+    }
+  }, [isOpen]);
+
   // Close on Escape key
   useEffect(() => {
     const handleEscape = (e) => {
@@ -79,33 +122,71 @@ export default function Leaderboard({ isOpen, onClose }) {
           LEADERBOARD
         </h2>
 
-        {/* Leaderboard List */}
-        <ul className="mb-8 space-y-3">
-          {LEADERBOARD_DATA.map((entry) => (
-            <li
-              key={entry.rank}
-              className="flex items-center justify-between p-4 bg-black/40 
-                         border-3 border-zerion-blue transition-all duration-200
-                         hover:bg-zerion-blue/20 hover:translate-x-1"
-              style={{ border: '3px solid #2563eb' }}
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex flex-col items-center justify-center py-16">
+            <div className="w-12 h-12 border-4 border-zerion-yellow border-t-transparent rounded-full animate-spin mb-4" />
+            <p className="text-sm font-pixel text-zerion-blue-light">Loading rankings...</p>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && !isLoading && (
+          <div className="mb-8 p-4 bg-red-500/20 border-3 border-red-500 rounded">
+            <p className="text-sm font-pixel text-red-300 text-center">{error}</p>
+            <button
+              onClick={fetchLeaderboard}
+              className="pixel-button-secondary w-full mt-4"
             >
-              {/* Rank */}
-              <span className="text-zerion-yellow font-bold text-sm md:text-base mr-4">
-                #{entry.rank}
-              </span>
+              Retry
+            </button>
+          </div>
+        )}
 
-              {/* Player Address */}
-              <span className="flex-1 text-zerion-light text-xs md:text-sm">
-                {entry.player}
-              </span>
+        {/* Leaderboard List */}
+        {!isLoading && !error && leaderboardData.length > 0 && (
+          <ul className="mb-8 space-y-3">
+            {leaderboardData.map((entry) => (
+              <li
+                key={entry.rank}
+                className="flex items-center justify-between p-4 bg-black/40 
+                           border-3 border-zerion-blue transition-all duration-200
+                           hover:bg-zerion-blue/20 hover:translate-x-1"
+                style={{ border: '3px solid #2563eb' }}
+              >
+                {/* Rank */}
+                <span className="text-zerion-yellow font-bold text-sm md:text-base mr-4">
+                  #{entry.rank}
+                </span>
 
-              {/* Score */}
-              <span className="text-zerion-yellow-glow font-bold text-sm md:text-base">
-                {entry.score.toLocaleString()}
-              </span>
-            </li>
-          ))}
-        </ul>
+                {/* Player Address */}
+                <span 
+                  className="flex-1 text-zerion-light text-xs md:text-sm"
+                  title={entry.fullAddress}
+                >
+                  {entry.player}
+                </span>
+
+                {/* Score */}
+                <span className="text-zerion-yellow-glow font-bold text-sm md:text-base">
+                  {entry.score.toLocaleString()}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* Empty State */}
+        {!isLoading && !error && leaderboardData.length === 0 && (
+          <div className="py-16 text-center">
+            <p className="text-lg font-pixel text-zerion-blue-light mb-4">
+              No players yet
+            </p>
+            <p className="text-sm text-zerion-light opacity-60">
+              Be the first to set a high score!
+            </p>
+          </div>
+        )}
 
         {/* Close Button */}
         <button
