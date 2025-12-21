@@ -1,10 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import CustomLoading from './CustomLoading';
 
+const BACKEND_URL = 'https://zerodashbackend.onrender.com';
+
 /**
- * GameCanvas Component - RESPONSIVE VERSION
+ * GameCanvas Component - NFT-AWARE VERSION
  * Manages Unity WebGL instance loading and rendering
- * Adapts to desktop (900x600) and mobile (432x768) devices
+ * Loads different game builds based on NFT ownership
+ * Passes wallet address via URL parameter to Unity
  * 
  * @param {Object} props
  * @param {string} props.walletAddress - Wallet address to pass to Unity
@@ -20,6 +23,53 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
   const [error, setError] = useState(null);
   const [dimensions, setDimensions] = useState({ width: 900, height: 600 });
   const [isMobile, setIsMobile] = useState(false);
+  const [hasNFT, setHasNFT] = useState(false);
+  const [checkingNFT, setCheckingNFT] = useState(true);
+
+  /**
+   * Check NFT ownership from backend
+   */
+  const checkNFTOwnership = async () => {
+    setCheckingNFT(true);
+
+    try {
+      // Get wallet address from localStorage
+      const storedWalletAddress = localStorage.getItem('walletAddress');
+      
+      if (!storedWalletAddress) {
+        console.log('No wallet address found, loading free version');
+        setHasNFT(false);
+        setCheckingNFT(false);
+        return;
+      }
+
+      const response = await fetch(`${BACKEND_URL}/player/profile`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${storedWalletAddress}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch NFT status');
+      }
+
+      const data = await response.json();
+      
+      // Set NFT status from backend
+      const nftStatus = data.nftPass === true;
+      setHasNFT(nftStatus);
+      
+      console.log('🎫 NFT Status:', nftStatus ? 'PREMIUM' : 'FREE');
+      
+    } catch (err) {
+      console.error('Error checking NFT ownership:', err);
+      setHasNFT(false); // Default to free version on error
+    } finally {
+      setCheckingNFT(false);
+    }
+  };
 
   /**
    * Detect device type and set appropriate dimensions
@@ -86,20 +136,33 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
     setError(null);
 
     try {
-      // 🔥 POINT TO R2 BUCKET
-      const R2_BASE_URL = 'https://pub-c51325b05b6848599be1cf2978bc4c0e.r2.dev/v4';
+      // Get wallet address from localStorage
+      const storedWalletAddress = localStorage.getItem('walletAddress');
       
-      const buildUrl = R2_BASE_URL;
+      // 🔥 SELECT BUILD URL BASED ON NFT OWNERSHIP
+      const BASE_URL = hasNFT 
+        ? 'https://pub-c51325b05b6848599be1cf2978bc4c0e.r2.dev/nft'   // NFT holders get premium build
+        : 'https://pub-c51325b05b6848599be1cf2978bc4c0e.r2.dev/v4';   // Free players get standard build
+      
+      console.log(`🎮 Loading ${hasNFT ? 'PREMIUM' : 'FREE'} game build from:`, BASE_URL);
+      
+      // Add wallet address as URL parameter
+      const walletParam = storedWalletAddress ? `?wallet=${encodeURIComponent(storedWalletAddress)}` : '';
+      const buildUrlWithWallet = `${BASE_URL}${walletParam}`;
+      
+      console.log('📍 Build URL with wallet:', buildUrlWithWallet);
+      
+      const buildUrl = BASE_URL;
       const loaderUrl = `${buildUrl}/ZeroDash.loader.js`;
       
       const config = {
         arguments: [],
-        dataUrl: `${buildUrl}/ZeroDash.data`,
-        frameworkUrl: `${buildUrl}/ZeroDash.framework.js`,
-        codeUrl: `${buildUrl}/ZeroDash.wasm`,
+        dataUrl: `${buildUrl}/ZeroDash.data${walletParam}`,
+        frameworkUrl: `${buildUrl}/ZeroDash.framework.js${walletParam}`,
+        codeUrl: `${buildUrl}/ZeroDash.wasm${walletParam}`,
         streamingAssetsUrl: '/StreamingAssets',
         companyName: 'Kult Games',
-        productName: 'Zero Dash',
+        productName: hasNFT ? 'Zero Dash Premium' : 'Zero Dash',
         productVersion: '1.0',
         showBanner: unityShowBanner,
         matchWebGLToCanvasSize: false,
@@ -149,16 +212,32 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
             canvas.style.height = `${dimensions.height}px`;
           }
 
-          // Send wallet address to Unity after a short delay
-          if (walletAddress) {
+          // Send wallet address to Unity after instance is ready
+          if (storedWalletAddress) {
             setTimeout(() => {
               try {
-                unityInstance.SendMessage('GameManager', 'SetWalletAddress', walletAddress);
-                console.log('✅ Wallet address sent to Unity:', walletAddress);
+                // Method 1: Direct SendMessage to Unity
+                unityInstance.SendMessage('GameManager', 'SetWalletAddress', storedWalletAddress);
+                console.log('✅ Wallet address sent to Unity via SendMessage:', storedWalletAddress);
+                
+                // Method 2: Also set as global variable (if Unity needs it)
+                window.playerWalletAddress = storedWalletAddress;
+                console.log('✅ Wallet address set as window.playerWalletAddress:', storedWalletAddress);
+                
+                // Method 3: Store in Unity PlayerPrefs equivalent
+                try {
+                  unityInstance.SendMessage('GameManager', 'SaveWalletAddress', storedWalletAddress);
+                  console.log('✅ Wallet address saved in Unity PlayerPrefs');
+                } catch (err) {
+                  console.log('ℹ️ SaveWalletAddress method not available (optional)');
+                }
+                
               } catch (err) {
                 console.warn('⚠️ Could not send wallet address to Unity:', err);
               }
-            }, 1000);
+            }, 1500); // Wait 1.5s for Unity to fully initialize
+          } else {
+            console.warn('⚠️ No wallet address found in localStorage');
           }
         } catch (err) {
           console.error('Unity instance creation failed:', err);
@@ -198,13 +277,22 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
   }, [dimensions]);
 
   /**
-   * Load Unity when component becomes visible
+   * Check NFT status when component becomes visible
    */
   useEffect(() => {
-    if (isVisible && !unityInstanceRef.current && !isLoading) {
+    if (isVisible && !unityInstanceRef.current) {
+      checkNFTOwnership();
+    }
+  }, [isVisible]);
+
+  /**
+   * Load Unity after NFT check is complete
+   */
+  useEffect(() => {
+    if (isVisible && !checkingNFT && !unityInstanceRef.current && !isLoading) {
       loadUnity();
     }
-  }, [isVisible, dimensions]);
+  }, [isVisible, checkingNFT, dimensions]);
 
   /**
    * Cleanup on unmount
@@ -235,7 +323,7 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
       }}
     >
       {/* Back Button */}
-      {onBack && isVisible && !isLoading && (
+      {onBack && isVisible && !isLoading && !checkingNFT && (
         <button
           onClick={onBack}
           className="absolute -top-16 left-0 pixel-button-secondary text-xs px-6 py-2 z-10"
@@ -247,6 +335,21 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
         >
           ← BACK TO MENU
         </button>
+      )}
+
+      {/* NFT Status Badge (Top Right) */}
+      {isVisible && !checkingNFT && (
+        <div className="absolute -top-16 right-0 z-10">
+          <div className={`
+            px-4 py-2 rounded-lg border-3 font-pixel text-xs font-bold
+            ${hasNFT 
+              ? 'bg-gradient-to-r from-yellow-500 to-orange-500 border-yellow-400 text-white' 
+              : 'bg-gradient-to-r from-gray-600 to-gray-700 border-gray-500 text-gray-200'
+            }
+          `}>
+            {hasNFT ? '🎫 PREMIUM' : '🎮 FREE'}
+          </div>
+        </div>
       )}
 
       {/* Unity Canvas */}
@@ -265,6 +368,21 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
         }}
       />
 
+      {/* NFT Checking Screen */}
+      {checkingNFT && isVisible && (
+        <div className="absolute inset-0 bg-zerion-blue-dark/95 border-4 border-zerion-yellow flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 mx-auto mb-4 border-4 border-zerion-yellow border-t-transparent rounded-full animate-spin" />
+            <p className="text-lg font-pixel text-zerion-yellow font-bold mb-2">
+              Checking NFT Pass...
+            </p>
+            <p className="text-xs font-pixel text-zerion-blue-light">
+              Loading your game experience
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Custom Loading Screen */}
       {isLoading && <CustomLoading progress={loadingProgress} isMobile={isMobile} />}
 
@@ -272,7 +390,16 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
       {error && (
         <div className="absolute top-full left-1/2 -translate-x-1/2 mt-5 max-w-md">
           <div className="bg-red-900/90 border-4 border-red-500 p-4 text-xs animate-shake">
-            {error}
+            <p className="font-pixel text-white mb-2">⚠️ {error}</p>
+            <button
+              onClick={() => {
+                setError(null);
+                loadUnity();
+              }}
+              className="pixel-button-secondary w-full text-xs"
+            >
+              🔄 Retry
+            </button>
           </div>
         </div>
       )}
@@ -280,10 +407,13 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
       {/* Unity Warning Banner */}
       <div id="unity-warning" className="fixed bottom-5 left-1/2 -translate-x-1/2 max-w-2xl z-[3000]" />
 
-      {/* Device indicator (debug) - BOTTOM LEFT, TEXT ONLY */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="fixed bottom-4 left-4 bg-black/70 text-white text-xs px-3 py-2 rounded font-pixel z-[9999]">
-          {isMobile ? '📱 Mobile' : '💻 Desktop'}
+      {/* Debug Info (Development Only) */}
+      {import.meta.env.DEV && isVisible && (
+        <div className="fixed bottom-4 left-4 bg-black/80 text-white text-xs px-3 py-2 rounded font-pixel z-[9999] space-y-1">
+          <div>{isMobile ? '📱 Mobile' : '💻 Desktop'} - {dimensions.width}x{dimensions.height}</div>
+          <div>🎫 NFT: {hasNFT ? 'PREMIUM ✅' : 'FREE'}</div>
+          <div>📍 Build: {hasNFT ? '/nft' : '/v4'}</div>
+          <div>👛 Wallet: {localStorage.getItem('walletAddress')?.slice(0, 10)}...</div>
         </div>
       )}
     </div>
