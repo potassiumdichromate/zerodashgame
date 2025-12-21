@@ -14,6 +14,20 @@ export function useWallet() {
   const [provider, setProvider] = useState(null);
 
   /**
+   * Helper to poll for provider injection
+   * Critical for mobile where injection might be delayed
+   */
+  const waitForProvider = useCallback(async (maxRetries = 20, interval = 100) => {
+    for (let i = 0; i < maxRetries; i++) {
+      if (typeof window.ethereum !== 'undefined' || window.zerion) {
+        return true;
+      }
+      await new Promise(resolve => setTimeout(resolve, interval));
+    }
+    return false;
+  }, []);
+
+  /**
    * Truncate wallet address for display
    */
   const truncateAddress = useCallback((address) => {
@@ -171,8 +185,9 @@ export function useWallet() {
 
     try {
       // Wait for wallet injection
+      // Wait for wallet injection - using polling instead of fixed timeout
       console.log('⏳ Waiting for wallet injection...');
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await waitForProvider();
 
       // Check if any Ethereum provider exists
       if (typeof window.ethereum === 'undefined' && !window.zerion) {
@@ -259,7 +274,7 @@ export function useWallet() {
   useEffect(() => {
     const checkConnection = async () => {
       // Wait for potential wallet injection
-      await new Promise(resolve => setTimeout(resolve, 300));
+      await waitForProvider(5, 100); // Shorter wait for auto-check
 
       if (typeof window.ethereum !== 'undefined' || window.zerion) {
         try {
