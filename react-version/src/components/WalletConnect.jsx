@@ -26,10 +26,10 @@ export default function WalletConnect({
     const results = {
       hasEthereum: typeof window.ethereum !== 'undefined',
       isZerion: window.ethereum?.isZerion || false,
-      isMetaMask: window.ethereum?.isMetaMask || false,
-      isCoinbase: window.ethereum?.isCoinbaseWallet || false,
+      // isMetaMask: window.ethereum?.isMetaMask || false,
+      // isCoinbase: window.ethereum?.isCoinbaseWallet || false,
       hasProviders: !!window.ethereum?.providers,
-      providerCount: window.ethereum?.providers?.length || 0,
+      // providerCount: window.ethereum?.providers?.length || 0,
       hasZerionWindow: !!window.zerion,
       zerionInProviders: window.ethereum?.providers?.some(p => p.isZerion) || false,
     };
