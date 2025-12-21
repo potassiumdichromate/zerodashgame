@@ -385,9 +385,19 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
   const [isDetectingWallet, setIsDetectingWallet] = useState(true)
 
   useEffect(() => {
-    // Start polling immediately when modal opens
+    // Check device type
+    const isMobile = window.innerWidth < 500
+
+    // If Desktop, don't wait - enable immediately
+    if (!isMobile) {
+      setIsDetectingWallet(false)
+      return
+    }
+
+    // Mobile: Start polling immediately when modal opens
     let mounted = true
     const detect = async () => {
+      // Wait specifically for Zerion on mobile
       await waitForProvider(30, 100)
       if (mounted) setIsDetectingWallet(false)
     }
@@ -644,12 +654,17 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
                           // Close the custom modal so Privy's modal can show up (z-index fix)
                           try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
 
-                          if (hasInjectedZerionWallet()) {
+                          const isMobile = window.innerWidth < 500
+
+                          // Mobile-Specific Force Logic
+                          if (isMobile && hasInjectedZerionWallet()) {
                             // "Force" the Zerion connection by calling the specific connector
                             // This behaves exactly like clicking "Zerion" in the wallet list
                             connectWith('zerion')
                             return
                           }
+
+                          // Desktop or Generic: Show the list of wallets
                           login({ loginMethods: ['wallet'] })
                         }}
                         disabled={emailStep === 'enter-code' || !ready || isDetectingWallet}
