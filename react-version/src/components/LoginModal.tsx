@@ -62,18 +62,18 @@ function hasInjectedZerionWallet(): boolean {
 /* ============================== Icons / Small UI ============================== */
 const WalletIcon = ({ size = 18 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-    <path d="M3.75 7.5h13.5a3 3 0 0 1 3 3v6.75a3 3 0 0 1-3 3H6.75a3 3 0 0 1-3-3V9.75a2.25 2.25 0 0 1 2.25-2.25Z" stroke="currentColor" strokeWidth="1.6"/>
-    <path d="M18.75 12.75h-2.25a1.5 1.5 0 1 0 0 3h2.25a.75.75 0 0 0 .75-.75v-1.5a.75.75 0 0 0-.75-.75Z" fill="currentColor"/>
-    <path d="M17.25 5.25H6a2.25 2.25 0 0 0-2.25 2.25v1.5" stroke="currentColor" strokeWidth="1.6"/>
+    <path d="M3.75 7.5h13.5a3 3 0 0 1 3 3v6.75a3 3 0 0 1-3 3H6.75a3 3 0 0 1-3-3V9.75a2.25 2.25 0 0 1 2.25-2.25Z" stroke="currentColor" strokeWidth="1.6" />
+    <path d="M18.75 12.75h-2.25a1.5 1.5 0 1 0 0 3h2.25a.75.75 0 0 0 .75-.75v-1.5a.75.75 0 0 0-.75-.75Z" fill="currentColor" />
+    <path d="M17.25 5.25H6a2.25 2.25 0 0 0-2.25 2.25v1.5" stroke="currentColor" strokeWidth="1.6" />
   </svg>
 )
 
 const GoogleIcon = ({ size = 18 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24">
-    <path fill="#4285F4" d="M23.6 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5c-.3 1.6-1.3 3-2.7 3.9v3.2h4.4c2.6-2.3 4.1-5.6 4.1-9.2z"/>
-    <path fill="#34A853" d="M12 24c3.6 0 6.6-1.2 8.8-3.2l-4.4-3.2c-1.2.8-2.7 1.3-4.4 1.3-3.4 0-6.2-2.3-7.2-5.3H.2v3.3C2.3 21.3 6.8 24 12 24z"/>
-    <path fill="#FBBC05" d="M4.8 13.6c-.3-1-.3-2 0-3V7.3H.2C-1 9.6-1 12.4.2 14.7l4.6-1.1z"/>
-    <path fill="#EA4335" d="M12 4.7c1.9 0 3.6.7 4.9 1.9l3.7-3.7C18.6 1 15.6 0 12 0 6.8 0 2.3 2.7.2 7.3l4.6 3.3C5.8 7.1 8.6 4.7 12 4.7z"/>
+    <path fill="#4285F4" d="M23.6 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5c-.3 1.6-1.3 3-2.7 3.9v3.2h4.4c2.6-2.3 4.1-5.6 4.1-9.2z" />
+    <path fill="#34A853" d="M12 24c3.6 0 6.6-1.2 8.8-3.2l-4.4-3.2c-1.2.8-2.7 1.3-4.4 1.3-3.4 0-6.2-2.3-7.2-5.3H.2v3.3C2.3 21.3 6.8 24 12 24z" />
+    <path fill="#FBBC05" d="M4.8 13.6c-.3-1-.3-2 0-3V7.3H.2C-1 9.6-1 12.4.2 14.7l4.6-1.1z" />
+    <path fill="#EA4335" d="M12 4.7c1.9 0 3.6.7 4.9 1.9l3.7-3.7C18.6 1 15.6 0 12 0 6.8 0 2.3 2.7.2 7.3l4.6 3.3C5.8 7.1 8.6 4.7 12 4.7z" />
   </svg>
 )
 
@@ -345,7 +345,7 @@ function CreateWalletPanel({
           <WalletRow label="OKX" />
           <WalletRow label="Zerion" />
         </div>
-        <GoogleButton onClick={() => {}} disabled />
+        <GoogleButton onClick={() => { }} disabled />
       </div>
     </div>
   )
@@ -430,7 +430,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
 
   const connectWith = async (wallet: WalletId) => {
     try {
-      try { if (dialogRef.current?.open) dialogRef.current.close() } catch {}
+      try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
       onClose?.()
       await connectWallet({ walletList: [wallet] })
     } catch (err: any) {
@@ -475,6 +475,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
       if (onAuthenticated) {
         onAuthenticated(currentAddress)
       }
+      localStorage.setItem('walletAddress', currentAddress)
       onClose?.()
       return
     }
@@ -491,7 +492,8 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
   }
 
   const handleLogout = () => {
-    logout().catch(() => {})
+    localStorage.removeItem('walletAddress')
+    logout().catch(() => { })
   }
 
   const onEmailSubmit: React.FormEventHandler<HTMLFormElement> = async (e) => {
@@ -521,9 +523,9 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
 
   const requestClose = () => {
     if (showCustomCreateUI && authenticated) {
-      logout().catch(() => {})
+      logout().catch(() => { })
     }
-    try { if (dialogRef.current?.open) dialogRef.current.close() } catch {}
+    try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
     onClose?.()
   }
 
@@ -533,7 +535,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
     <dialog
       ref={dialogRef}
       onCancel={requestClose}
-      style = {{minWidth:"100vw",minHeight:"100vh"}}
+      style={{ minWidth: "100vw", minHeight: "100vh" }}
       className="fixed inset-0 z-50 m-0 flex items-center justify-center bg-black/40 p-4 sm:p-6"
     >
       <div className="relative w-full max-w-md rounded-2xl border border-amber-400/60 bg-[rgba(24,16,8,0.96)] shadow-[0_30px_80px_rgba(0,0,0,0.70)]">
@@ -604,7 +606,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
                         onClick={() => {
                           if (emailStep === 'enter-code') return
                           preflightEnsureAllowedNetwork(() => {
-                            try { if (dialogRef.current?.open) dialogRef.current.close() } catch {}
+                            try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
                             if (hasInjectedZerionWallet()) {
                               // `connectWallet` links an external wallet; it doesn't authenticate a new user.
                               // Use `login` so the connected wallet results in an authenticated Privy session.
