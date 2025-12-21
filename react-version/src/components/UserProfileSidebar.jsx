@@ -16,23 +16,23 @@ export default function UserProfileSidebar({ isVisible, walletAddress }) {
    * Fetch user profile stats from backend
    */
   const fetchUserStats = async () => {
-    if (!walletAddress) {
-      setIsLoading(false);
-      return;
-    }
-
     setIsLoading(true);
     setError(null);
 
     try {
+      // Get wallet address from localStorage
+      const storedWalletAddress = localStorage.getItem('walletAddress');
+      
+      if (!storedWalletAddress) {
+        throw new Error('No wallet address found');
+      }
+
       const response = await fetch(`${BACKEND_URL}/player/profile`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          // Add wallet address in header or query param if needed by your backend
-          // 'X-Wallet-Address': walletAddress,
+          'Authorization': `Bearer ${storedWalletAddress}`, // Send wallet address as Bearer token
         },
-        credentials: 'include', // Include cookies if your backend uses sessions
       });
 
       if (!response.ok) {
@@ -158,14 +158,14 @@ export default function UserProfileSidebar({ isVisible, walletAddress }) {
    * Initial load and auto-refresh
    */
   useEffect(() => {
-    if (isVisible && walletAddress) {
+    if (isVisible) {
       fetchUserStats();
       
       // Refresh every 30 seconds to update "last active" and reward timer
       const interval = setInterval(fetchUserStats, 30000);
       return () => clearInterval(interval);
     }
-  }, [isVisible, walletAddress]);
+  }, [isVisible]);
 
   /**
    * Format wallet address
