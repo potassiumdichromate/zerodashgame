@@ -8,6 +8,9 @@ import { useState, useEffect, useCallback } from 'react';
  * We now check multiple ways to identify Zerion
  */
 export function useWallet() {
+  // Debug log to verify deployment
+  console.log('Using useWallet hook - Polling Fix v2 (Forceful)');
+
   const [walletAddress, setWalletAddress] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [error, setError] = useState(null);
@@ -16,8 +19,9 @@ export function useWallet() {
   /**
    * Helper to poll for provider injection
    * Critical for mobile where injection might be delayed
+   * UPDATED: Increased to 50 retries (5s) for forceful detection
    */
-  const waitForProvider = useCallback(async (maxRetries = 20, interval = 100) => {
+  const waitForProvider = useCallback(async (maxRetries = 50, interval = 100) => {
     for (let i = 0; i < maxRetries; i++) {
       if (typeof window.ethereum !== 'undefined' || window.zerion) {
         return true;
@@ -69,9 +73,9 @@ export function useWallet() {
     }
 
     // Method 2: Check provider name/branding
-    if (provider.isZerion === true || 
-        provider._zerion || 
-        provider.zerion) {
+    if (provider.isZerion === true ||
+      provider._zerion ||
+      provider.zerion) {
       console.log('✅ Confirmed Zerion via naming');
       return true;
     }
@@ -113,7 +117,7 @@ export function useWallet() {
     // Method 2: Check providers array (multi-wallet setup)
     if (window.ethereum?.providers && Array.isArray(window.ethereum.providers)) {
       console.log('🔍 Checking providers array...');
-      const zerionProvider = window.ethereum.providers.find(p => 
+      const zerionProvider = window.ethereum.providers.find(p =>
         p.isZerion || isLikelyZerion(p)
       );
       if (zerionProvider) {
@@ -218,7 +222,7 @@ export function useWallet() {
 
         // Verify it's Zerion (permissive check)
         const isVerifiedZerion = await verifyIsZerion(potentialProvider, connectedAddress);
-        
+
         if (!isVerifiedZerion) {
           console.warn('⚠️ Could not verify this is Zerion wallet');
           // Still allow connection but warn user
@@ -237,7 +241,7 @@ export function useWallet() {
       }
     } catch (err) {
       console.error('❌ Wallet connection error:', err);
-      
+
       // Handle specific error cases
       if (err.message === 'ZERION_NOT_INSTALLED') {
         setError('ZERION_NOT_INSTALLED');
@@ -248,7 +252,7 @@ export function useWallet() {
       } else {
         setError(err.message || 'Failed to connect wallet');
       }
-      
+
       return null;
     } finally {
       setIsConnecting(false);
@@ -274,15 +278,16 @@ export function useWallet() {
   useEffect(() => {
     const checkConnection = async () => {
       // Wait for potential wallet injection
-      await waitForProvider(5, 100); // Shorter wait for auto-check
+      // Forceful wait: check for up to 3 seconds on mount (30 retries)
+      await waitForProvider(30, 100);
 
       if (typeof window.ethereum !== 'undefined' || window.zerion) {
         try {
           console.log('🔍 Checking for existing wallet connection...');
-          
+
           // Find provider
           const potentialProvider = findZerionProvider();
-          
+
           if (!potentialProvider) {
             console.log('ℹ️ No wallet detected on mount');
             return;
@@ -291,12 +296,12 @@ export function useWallet() {
           const accounts = await potentialProvider.request({
             method: 'eth_accounts',
           });
-          
+
           if (accounts && accounts.length > 0) {
             console.log('✅ Found existing wallet connection:', accounts[0]);
             setWalletAddress(accounts[0]);
             setProvider(potentialProvider);
-            
+
             // Set up listeners
             potentialProvider.on('accountsChanged', handleAccountsChanged);
             potentialProvider.on('chainChanged', handleChainChanged);

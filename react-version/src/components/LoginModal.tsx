@@ -59,6 +59,23 @@ function hasInjectedZerionWallet(): boolean {
   return providers.some((p: any) => Boolean(p?.isZerion))
 }
 
+/**
+ * Helper to poll for provider injection (Critical for mobile)
+ */
+async function waitForProvider(maxRetries = 50, interval = 100): Promise<boolean> {
+  console.log('LoginModal: Waiting for provider injection...')
+  for (let i = 0; i < maxRetries; i++) {
+    const w = window as any
+    if (typeof w.ethereum !== 'undefined' || w.zerion) {
+      console.log('LoginModal: Provider detected!')
+      return true
+    }
+    await new Promise(resolve => setTimeout(resolve, interval))
+  }
+  console.log('LoginModal: Provider wait timed out')
+  return false
+}
+
 /* ============================== Icons / Small UI ============================== */
 const WalletIcon = ({ size = 18 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -603,8 +620,12 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
                       <button
                         type="button"
                         className="w-full inline-flex items-center justify-center rounded-2xl border border-emerald-400/50 bg-gradient-to-tr from-emerald-400 via-teal-400 to-cyan-500 px-4 py-3 text-sm md:text-base font-bold text-white shadow-[0_10px_28px_rgba(16,185,129,0.35)] hover:shadow-[0_14px_34px_rgba(16,185,129,0.45)] active:scale-[.99] transition disabled:opacity-60"
-                        onClick={() => {
+                        onClick={async () => {
                           if (emailStep === 'enter-code') return
+
+                          // Wait for wallet injection before proceeding
+                          await waitForProvider()
+
                           preflightEnsureAllowedNetwork(() => {
                             try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
                             if (hasInjectedZerionWallet()) {
