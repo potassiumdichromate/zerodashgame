@@ -186,20 +186,62 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
     setMintingStep(1);
 
     try {
-      // Step 1: Get Privy wallet provider
-      const embeddedWallet = wallets.find((wallet) => 
+      // Step 1: Get Privy wallet
+      let embeddedWallet = wallets.find((wallet) => 
         wallet.walletClientType === 'privy' || wallet.walletClientType === 'embedded'
-      ) || wallets[0];
+      );
+      
+      // Fallback to first wallet if not found
+      if (!embeddedWallet && wallets.length > 0) {
+        embeddedWallet = wallets[0];
+      }
       
       if (!embeddedWallet) {
-        throw new Error('Privy wallet not found. Please reconnect.');
+        throw new Error('No wallet found. Please reconnect.');
       }
 
-      // Get Ethereum provider from Privy
-      await embeddedWallet.switchChain(16661); // Switch to 0G Mainnet
-      const provider = await embeddedWallet.getEthereumProvider();
-      const ethersProvider = new ethers.BrowserProvider(provider);
-      const signer = await ethersProvider.getSigner();
+      console.log('🔍 Using wallet:', embeddedWallet);
+
+      // Step 2: Switch to 0G Mainnet (Chain ID: 16661)
+      try {
+        await embeddedWallet.switchChain(16661);
+        console.log('✅ Switched to 0G Mainnet');
+      } catch (switchError) {
+        console.warn('Chain switch error (might already be on correct chain):', switchError);
+      }
+
+      // Step 3: Get provider - try multiple methods
+      let provider;
+      let ethersProvider;
+      let signer;
+
+      // Method 1: Try getEthereumProvider
+      try {
+        provider = await embeddedWallet.getEthereumProvider();
+        ethersProvider = new ethers.BrowserProvider(provider);
+        signer = await ethersProvider.getSigner();
+        console.log('✅ Got provider via getEthereumProvider');
+      } catch (error1) {
+        console.warn('Method 1 failed:', error1);
+        
+        // Method 2: Try getEthersProvider
+        try {
+          ethersProvider = await embeddedWallet.getEthersProvider();
+          signer = await ethersProvider.getSigner();
+          console.log('✅ Got provider via getEthersProvider');
+        } catch (error2) {
+          console.warn('Method 2 failed:', error2);
+          
+          // Method 3: Try using window.ethereum directly
+          if (window.ethereum) {
+            ethersProvider = new ethers.BrowserProvider(window.ethereum);
+            signer = await ethersProvider.getSigner();
+            console.log('✅ Got provider via window.ethereum');
+          } else {
+            throw new Error('Could not get wallet provider. Please try reconnecting your wallet.');
+          }
+        }
+      }
 
       // Connect to contract
       const nftContract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_ABI, signer);
@@ -211,7 +253,7 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
       console.log('   Address:', walletAddress);
       console.log('   Whitelisted:', isWhitelisted);
       console.log('   Price:', isWhitelisted ? 'FREE' : '5 0G');
-      console.log('   Proof:', merkleProof);
+      console.log('   Proof length:', merkleProof.length);
 
       setMintingStep(2);
 
@@ -289,6 +331,8 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
         errorMessage = `Insufficient 0G balance. You need ${isWhitelisted ? '~0.0001' : '5+'} 0G.`;
       } else if (error.message?.includes('Max supply reached')) {
         errorMessage = 'Sorry, all NFTs have been minted!';
+      } else if (error.message?.includes('not a constructor')) {
+        errorMessage = 'Wallet provider error. Please disconnect and reconnect your wallet, then try again.';
       } else if (error.message) {
         errorMessage = error.message;
       }
