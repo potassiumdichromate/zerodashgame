@@ -431,7 +431,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
   const hasAnyWallet = Boolean(existingAddress)
 
   const { connectWallet } = useConnectWallet({
-    onSuccess: () => onClose?.(),
+    // onSuccess: () => onClose?.(), // REMOVED: Do not auto-close. Let the auth effect handle it.
     onError: (err: any) => setError(formatPrivyError(err)),
   })
 
@@ -493,9 +493,9 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
 
   const connectWith = async (wallet: WalletId) => {
     try {
-      // Just visually close the dialog, but DO NOT unmount the component (do not call onClose)
-      // The component must remain mounted for useConnectWallet hook to work.
-      try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
+      // DO NOT close the dialog here. Keep it open to show "Connecting..." state.
+      // This prevents any unmount/zombie issues.
+      // try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
 
       await connectWallet({ walletList: [wallet] })
       return { ok: true as const }
@@ -678,15 +678,46 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
                           setError('') // Clear previous errors
 
                           try {
-                            // Close the custom modal so Privy's modal can show up (z-index fix)
-                            try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
-
+                            // Close the custom modal ONLY for Desktop to let Privy modal show.
+                            // For Mobile, we keep it open while switching apps to ensure stability.
                             const isMobile = window.innerWidth < 500
+                            if (!isMobile) {
+                              try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
+                            }
 
                             // Mobile: Always deep-link to Zerion immediately to keep the action
-                            // within the user gesture (prevents first-time block on mobile).
+                            // within the user gesture.
                             if (isMobile) {
                               const result = await connectWith('zerion')
+
+                              if (result?.ok) {
+                                // SUCCESS! Now trigger the LOGIN (Signature) flow.
+                                // We close our modal NOW to let the Signature modal (if any) show up.
+                                try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
+                                login({ loginMethods: ['wallet'] })
+                                return
+                              }
+
+                              if (result?.ok === false && isGenericConnectWalletError(result.code)) {
+                                setError('')
+                                try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
+                                login({ loginMethods: ['wallet'] })
+                              }
+                              return
+                            }
+
+                            // Mobile: Always deep-link to Zerion immediately to keep the action
+                            // within the user gesture.
+                            if (isMobile) {
+                              const result = await connectWith('zerion')
+
+                              if (result?.ok) {
+                                // SUCCESS! Now trigger the LOGIN (Signature) flow.
+                                // Since we are now connected, this should prompt for signature.
+                                login({ loginMethods: ['wallet'] })
+                                return
+                              }
+
                               if (result?.ok === false && isGenericConnectWalletError(result.code)) {
                                 setError('')
                                 login({ loginMethods: ['wallet'] })
