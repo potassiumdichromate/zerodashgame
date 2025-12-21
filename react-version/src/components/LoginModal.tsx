@@ -269,9 +269,6 @@ function WalletPickerScrollable({
           .wallet-scroll:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.35); }
         `}</style>
         <div className="wallet-scroll grid gap-2">
-          {/* <WalletRow label="MetaMask" hint="Browser Extension" onClick={() => connectWith('metamask')} />
-          <WalletRow label="Coinbase Wallet" hint="App / Extension" onClick={() => connectWith('coinbase_wallet')} />
-          <WalletRow label="OKX" hint="App / Extension" onClick={() => connectWith('okx_wallet')} /> */}
           <WalletRow label="Zerion" hint="App / Extension" onClick={() => connectWith('zerion')} />
         </div>
       </div>
@@ -340,9 +337,6 @@ function CreateWalletPanel({
 
       <div className="grid gap-2 opacity-60">
         <div className="grid gap-2">
-          <WalletRow label="MetaMask" />
-          <WalletRow label="Coinbase Wallet" />
-          <WalletRow label="OKX" />
           <WalletRow label="Zerion" />
         </div>
         <GoogleButton onClick={() => { }} disabled />

@@ -178,14 +178,14 @@ export function useWallet() {
     setError(null);
 
     // Log current wallet state for debugging
-    console.log('=== 🔍 Wallet Detection Debug ===');
-    console.log('window.ethereum exists:', !!window.ethereum);
-    console.log('window.ethereum.isZerion:', window.ethereum?.isZerion);
-    console.log('window.ethereum.isMetaMask:', window.ethereum?.isMetaMask);
-    console.log('window.ethereum.isCoinbaseWallet:', window.ethereum?.isCoinbaseWallet);
-    console.log('window.ethereum.providers:', window.ethereum?.providers);
-    console.log('window.zerion exists:', !!window.zerion);
-    console.log('==============================');
+    // console.log('=== 🔍 Wallet Detection Debug ===');
+    // console.log('window.ethereum exists:', !!window.ethereum);
+    // console.log('window.ethereum.isZerion:', window.ethereum?.isZerion);
+    // console.log('window.ethereum.isMetaMask:', window.ethereum?.isMetaMask);
+    // console.log('window.ethereum.isCoinbaseWallet:', window.ethereum?.isCoinbaseWallet);
+    // console.log('window.ethereum.providers:', window.ethereum?.providers);
+    // console.log('window.zerion exists:', !!window.zerion);
+    // console.log('==============================');
 
     try {
       // Wait for wallet injection
