@@ -665,20 +665,31 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
                           setError('') // Clear previous errors
 
                           try {
-                            // Close the custom modal ONLY for Desktop to avoid z-index issues.
-                            // For Mobile, keep it open while switching apps.
                             const isMobile = window.innerWidth < 500
-                            if (!isMobile) {
+
+                            // MOBILE FIX: Close our modal so Privy/Zerion can take over the screen.
+                            // This solves "opening behind the modal".
+                            if (isMobile) {
                               try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
                             }
 
+                            // Connect
                             const result = await connectWith('zerion')
-                            if (result?.ok === false && dialogRef.current && !dialogRef.current.open) {
-                              dialogRef.current.showModal()
+
+                            // DESKTOP FIX: If it failed or closed, make sure to show our modal again
+                            // so the user sees the error.
+                            if (result?.ok === false) {
+                              if (dialogRef.current && !dialogRef.current.open) dialogRef.current.showModal()
+                            } else {
+                              // Success!
+                              // If desktop, we might need to close it now, OR wait for auth.
+                              // The auth effect will handle the final close.
                             }
+
                           } catch (err: any) {
                             console.error('Wallet connection error:', err)
                             setError(formatPrivyError(err))
+                            // ALWAYS re-open on error so the user isn't lost
                             if (dialogRef.current && !dialogRef.current.open) dialogRef.current.showModal()
                           } finally {
                             setIsConnecting(false)
