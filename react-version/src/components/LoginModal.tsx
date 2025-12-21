@@ -380,6 +380,20 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
   const [walletMode, setWalletMode] = useState(false)
   const [creating, setCreating] = useState(false)
 
+  // Wallet detection state
+  const [isDetectingWallet, setIsDetectingWallet] = useState(true)
+
+  useEffect(() => {
+    // Start polling immediately when modal opens
+    let mounted = true
+    const detect = async () => {
+      await waitForProvider(30, 100)
+      if (mounted) setIsDetectingWallet(false)
+    }
+    detect()
+    return () => { mounted = false }
+  }, [])
+
   const { createWallet } = useCreateWallet()
   const [existingAddress, setExistingAddress] = useState<string | undefined>(getPrimaryWalletAddress(user))
   const hasAnyWallet = Boolean(existingAddress)
@@ -620,29 +634,30 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
                       <button
                         type="button"
                         className="w-full inline-flex items-center justify-center rounded-2xl border border-emerald-400/50 bg-gradient-to-tr from-emerald-400 via-teal-400 to-cyan-500 px-4 py-3 text-sm md:text-base font-bold text-white shadow-[0_10px_28px_rgba(16,185,129,0.35)] hover:shadow-[0_14px_34px_rgba(16,185,129,0.45)] active:scale-[.99] transition disabled:opacity-60"
-                        onClick={async () => {
+                        onClick={() => {
                           if (emailStep === 'enter-code') return
 
-                          // Wait for wallet injection before proceeding
-                          await waitForProvider()
+                          // Skip async network check to ensure synchronous user gesture
+                          // Deep links will block if we await anything here
 
-                          preflightEnsureAllowedNetwork(() => {
-                            try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
-                            if (hasInjectedZerionWallet()) {
-                              // `connectWallet` links an external wallet; it doesn't authenticate a new user.
-                              // Use `login` so the connected wallet results in an authenticated Privy session.
-                              login({ loginMethods: ['wallet'] })
-                              return
-                            }
+                          if (hasInjectedZerionWallet()) {
+                            // `connectWallet` links an external wallet; it doesn't authenticate a new user.
+                            // Use `login` so the connected wallet results in an authenticated Privy session.
                             login({ loginMethods: ['wallet'] })
-                          })
+                            return
+                          }
+                          login({ loginMethods: ['wallet'] })
                         }}
-                        disabled={emailStep === 'enter-code' || !ready}
+                        disabled={emailStep === 'enter-code' || !ready || isDetectingWallet}
                       >
                         <span className="mr-2 inline-flex items-center">
-                          <WalletIcon />
+                          {isDetectingWallet ? (
+                            <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                          ) : (
+                            <WalletIcon />
+                          )}
                         </span>
-                        <span>Connect Wallet</span>
+                        <span>{isDetectingWallet ? 'Detecting Wallet...' : 'Connect Wallet'}</span>
                       </button>
 
                       <GoogleButton
