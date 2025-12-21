@@ -65,9 +65,10 @@ function hasInjectedZerionWallet(): boolean {
 async function waitForProvider(maxRetries = 50, interval = 100): Promise<boolean> {
   console.log('LoginModal: Waiting for provider injection...')
   for (let i = 0; i < maxRetries; i++) {
-    const w = window as any
-    if (typeof w.ethereum !== 'undefined' || w.zerion) {
-      console.log('LoginModal: Provider detected!')
+    // Strict check: Wait specifically for Zerion flags
+    // This prevents generic window.ethereum stubs from triggering an early "ready" state
+    if (hasInjectedZerionWallet()) {
+      console.log('LoginModal: Zerion Provider detected!')
       return true
     }
     await new Promise(resolve => setTimeout(resolve, interval))
