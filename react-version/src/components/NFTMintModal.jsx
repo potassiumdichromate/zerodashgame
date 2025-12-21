@@ -30,7 +30,7 @@ const NFT_ABI = [
  * @param {Function} props.onMintSuccess - Success callback after minting
  */
 export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
-  const { authenticated, user } = usePrivy();
+  const { authenticated } = usePrivy();
   const { wallets } = useWallets();
   
   const [isMinting, setIsMinting] = useState(false);
@@ -55,37 +55,39 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
   ];
 
   /**
-   * Get wallet address from Privy
+   * Get wallet address from localStorage
    */
   useEffect(() => {
-    const getWalletAddress = async () => {
-      if (authenticated && wallets.length > 0) {
-        const embeddedWallet = wallets.find((wallet) => wallet.walletClientType === 'privy');
-        if (embeddedWallet) {
-          const address = await embeddedWallet.address;
-          setWalletAddress(address);
-        }
-      }
-    };
-
     if (isOpen) {
-      getWalletAddress();
+      const address = localStorage.getItem('walletAddress');
+      if (address) {
+        console.log('🔍 Wallet Address:', address);
+        setWalletAddress(address);
+      } else {
+        console.log('❌ No wallet address in localStorage');
+      }
     }
-  }, [isOpen, authenticated, wallets]);
+  }, [isOpen]);
 
   /**
    * Check whitelist status and mint status
    */
   useEffect(() => {
     const checkStatuses = async () => {
-      if (!walletAddress) return;
+      if (!walletAddress) {
+        console.log('⏳ Waiting for wallet address...');
+        return;
+      }
 
       setWhitelistChecking(true);
+      console.log('🔍 Checking whitelist for:', walletAddress);
 
       try {
         // Check whitelist from backend
         const whitelistResponse = await fetch(`${BACKEND_URL}/nft/proof/${walletAddress}`);
         const whitelistData = await whitelistResponse.json();
+        
+        console.log('📋 Backend response:', whitelistData);
         
         if (whitelistData.success) {
           setIsWhitelisted(whitelistData.isWhitelisted);
@@ -95,11 +97,20 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
 
         // Check if already minted from contract
         try {
-          const provider = new ethers.BrowserProvider(window.ethereum);
-          const contract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_ABI, provider);
-          const minted = await contract.hasMinted(walletAddress);
-          setHasMinted(minted);
-          console.log('Mint status:', minted ? 'Already minted' : 'Not minted');
+          // Use Privy wallet provider
+          const embeddedWallet = wallets.find((wallet) => 
+            wallet.walletClientType === 'privy' || wallet.walletClientType === 'embedded'
+          ) || wallets[0];
+          
+          if (embeddedWallet) {
+            const provider = await embeddedWallet.getEthereumProvider();
+            const ethersProvider = new ethers.BrowserProvider(provider);
+            const contract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_ABI, ethersProvider);
+            
+            const minted = await contract.hasMinted(walletAddress);
+            setHasMinted(minted);
+            console.log('Mint status:', minted ? 'Already minted' : 'Not minted');
+          }
         } catch (error) {
           console.warn('Could not check mint status:', error);
         }
@@ -116,7 +127,7 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
     if (isOpen && walletAddress) {
       checkStatuses();
     }
-  }, [isOpen, walletAddress]);
+  }, [isOpen, walletAddress, wallets]);
 
   /**
    * Play video when modal opens
@@ -176,7 +187,9 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
 
     try {
       // Step 1: Get Privy wallet provider
-      const embeddedWallet = wallets.find((wallet) => wallet.walletClientType === 'privy');
+      const embeddedWallet = wallets.find((wallet) => 
+        wallet.walletClientType === 'privy' || wallet.walletClientType === 'embedded'
+      ) || wallets[0];
       
       if (!embeddedWallet) {
         throw new Error('Privy wallet not found. Please reconnect.');
@@ -518,7 +531,7 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
           )}
 
           {/* Privy Wallet Info */}
-          {!isMinting && authenticated && (
+          {!isMinting && authenticated && walletAddress && (
             <div className="bg-purple-900/30 border-2 border-purple-500/50 rounded-lg p-4">
               <div className="flex items-start gap-3">
                 <span className="text-2xl">👛</span>
@@ -565,20 +578,22 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
             
             <button
               onClick={handleMint}
-              disabled={isMinting || !authenticated || hasMinted || whitelistChecking}
+              disabled={isMinting || !authenticated || hasMinted || whitelistChecking || !walletAddress}
               className="flex-1 pixel-button-primary text-sm py-4 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {!authenticated 
                 ? '🔒 CONNECT WALLET'
-                : hasMinted
-                  ? '✅ ALREADY MINTED'
-                  : whitelistChecking
-                    ? '⏳ CHECKING...'
-                    : isMinting 
-                      ? `⏳ ${MINTING_STEPS[mintingStep].label.toUpperCase()}...` 
-                      : isWhitelisted
-                        ? '🎁 MINT FREE'
-                        : '💎 MINT FOR 5 0G'
+                : !walletAddress
+                  ? '⏳ LOADING...'
+                  : hasMinted
+                    ? '✅ ALREADY MINTED'
+                    : whitelistChecking
+                      ? '⏳ CHECKING...'
+                      : isMinting 
+                        ? `⏳ ${MINTING_STEPS[mintingStep].label.toUpperCase()}...` 
+                        : isWhitelisted
+                          ? '🎁 MINT FREE'
+                          : '💎 MINT FOR 5 0G'
               }
             </button>
           </div>
