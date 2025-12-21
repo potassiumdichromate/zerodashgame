@@ -1,10 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import nftPassVideo from '../assets/nftpass.mp4';
 
+// Whitelist addresses (FREE MINT)
+const WHITELIST_ADDRESSES = [
+  '0x1234567890abcdef1234567890abcdef12345678',
+  '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd',
+  // Add more whitelist addresses here
+];
+
 /**
  * NFTMintModal Component
  * Premium NFT Pass minting modal with video preview
- * Matches Zero Dash game theme with pixel art styling
+ * Mints on 0G Blockchain - Requires Zerion Wallet
  * 
  * @param {Object} props
  * @param {boolean} props.isOpen - Modal visibility state
@@ -15,15 +22,38 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
   const [isMinting, setIsMinting] = useState(false);
   const [mintingStep, setMintingStep] = useState(0); // 0: ready, 1: processing, 2: confirming, 3: success
   const [transactionHash, setTransactionHash] = useState('');
+  const [isWhitelisted, setIsWhitelisted] = useState(false);
+  const [walletAddress, setWalletAddress] = useState('');
   const videoRef = useRef(null);
 
   // Minting steps for UI feedback
   const MINTING_STEPS = [
     { label: 'Ready to Mint', icon: '🎨', color: 'text-blue-400' },
     { label: 'Initializing Transaction', icon: '⚡', color: 'text-yellow-400' },
-    { label: 'Confirming on Blockchain', icon: '⛓️', color: 'text-orange-400' },
+    { label: 'Confirming on 0G Blockchain', icon: '⛓️', color: 'text-orange-400' },
     { label: 'Minted Successfully!', icon: '✅', color: 'text-green-400' },
   ];
+
+  /**
+   * Check if wallet is whitelisted
+   */
+  useEffect(() => {
+    const checkWhitelist = () => {
+      const storedWallet = localStorage.getItem('walletAddress');
+      setWalletAddress(storedWallet || '');
+      
+      if (storedWallet) {
+        const whitelisted = WHITELIST_ADDRESSES.some(
+          addr => addr.toLowerCase() === storedWallet.toLowerCase()
+        );
+        setIsWhitelisted(whitelisted);
+      }
+    };
+
+    if (isOpen) {
+      checkWhitelist();
+    }
+  }, [isOpen]);
 
   /**
    * Play video when modal opens
@@ -75,18 +105,34 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
       // Step 1: Initialize Transaction
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      /* TODO: BLOCKCHAIN INTEGRATION
+      /* TODO: 0G BLOCKCHAIN INTEGRATION
       
       // Get wallet address
       const walletAddress = localStorage.getItem('walletAddress');
       
-      // Connect to contract
+      // Check if Zerion wallet is connected
+      if (!window.ethereum || !window.ethereum.isZerion) {
+        throw new Error('Zerion Wallet not detected. Please use Zerion Wallet to mint.');
+      }
+      
+      // Connect to 0G Blockchain
       const provider = new ethers.providers.Web3Provider(window.ethereum);
       const signer = provider.getSigner();
-      const nftContract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_ABI, signer);
       
-      // Mint price (e.g., 0.001 ETH)
-      const mintPrice = ethers.utils.parseEther("0.001");
+      // 0G NFT Contract
+      const OG_NFT_CONTRACT_ADDRESS = '0x...'; // Your 0G contract address
+      const NFT_ABI = [...]; // Your contract ABI
+      const nftContract = new ethers.Contract(OG_NFT_CONTRACT_ADDRESS, NFT_ABI, signer);
+      
+      // Check whitelist
+      const isWhitelisted = WHITELIST_ADDRESSES.some(
+        addr => addr.toLowerCase() === walletAddress.toLowerCase()
+      );
+      
+      // Mint price: 5 0G for public, FREE for whitelist
+      const mintPrice = isWhitelisted 
+        ? ethers.utils.parseEther("0")     // FREE for whitelist
+        : ethers.utils.parseEther("5");    // 5 0G for public
       
       // Call mint function
       const tx = await nftContract.mint({
@@ -101,13 +147,13 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
       // Step 2: Wait for confirmation
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      /* TODO: BLOCKCHAIN INTEGRATION
+      /* TODO: 0G BLOCKCHAIN INTEGRATION
       
-      // Wait for transaction confirmation
+      // Wait for transaction confirmation on 0G blockchain
       const receipt = await tx.wait();
       setTransactionHash(receipt.transactionHash);
       
-      // Update backend
+      // Update backend with NFT pass status
       const response = await fetch('https://zerodashbackend.onrender.com/player/update-nft-status', {
         method: 'POST',
         headers: {
@@ -116,7 +162,9 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
         },
         body: JSON.stringify({ 
           nftPass: true,
-          transactionHash: receipt.transactionHash 
+          transactionHash: receipt.transactionHash,
+          blockchain: '0G',
+          mintPrice: isWhitelisted ? '0' : '5'
         }),
       });
       
@@ -199,7 +247,7 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
                 🎫 ZERO DASH PASS
               </h2>
               <p className="text-sm font-pixel text-zerion-blue-light">
-                Mint your exclusive NFT Pass to unlock premium features
+                Mint your exclusive NFT Pass on 0G Blockchain
               </p>
             </div>
             
@@ -234,6 +282,16 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
               EXCLUSIVE NFT
             </p>
           </div>
+
+          {/* Whitelist Badge */}
+          {isWhitelisted && (
+            <div className="absolute top-4 left-4 bg-gradient-to-r from-green-500 to-emerald-500 
+                            border-3 border-green-400 rounded-lg px-4 py-2 animate-pulse">
+              <p className="text-xs font-pixel text-white font-bold">
+                ✅ WHITELISTED - FREE MINT
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Content */}
@@ -281,14 +339,33 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
           </div>
 
           {/* Minting Price */}
-          <div className="bg-gradient-to-r from-yellow-900/40 to-orange-900/40 border-3 border-yellow-500 rounded-lg p-5">
+          <div className={`bg-gradient-to-r border-3 rounded-lg p-5 ${
+            isWhitelisted
+              ? 'from-green-900/40 to-emerald-900/40 border-green-500'
+              : 'from-yellow-900/40 to-orange-900/40 border-yellow-500'
+          }`}>
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-pixel text-yellow-300 mb-1">MINT PRICE</p>
-                <p className="text-3xl font-pixel text-zerion-yellow font-bold">0.001 ETH</p>
-                <p className="text-xs font-pixel text-yellow-200 mt-1">≈ $2.00 USD</p>
+                <p className={`text-xs font-pixel mb-1 ${
+                  isWhitelisted ? 'text-green-300' : 'text-yellow-300'
+                }`}>
+                  {isWhitelisted ? 'WHITELIST PRICE' : 'MINT PRICE'}
+                </p>
+                {isWhitelisted ? (
+                  <>
+                    <p className="text-3xl font-pixel text-green-400 font-bold">FREE</p>
+                    <p className="text-xs font-pixel text-green-200 mt-1">
+                      <span className="line-through opacity-50">5 0G</span> → 0 0G
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-3xl font-pixel text-zerion-yellow font-bold">5 0G</p>
+                    <p className="text-xs font-pixel text-yellow-200 mt-1">0G Blockchain Token</p>
+                  </>
+                )}
               </div>
-              <div className="text-6xl">💎</div>
+              <div className="text-6xl">{isWhitelisted ? '🎁' : '💎'}</div>
             </div>
           </div>
 
@@ -302,7 +379,7 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
                     {MINTING_STEPS[mintingStep].label}
                   </p>
                   <p className="text-xs font-pixel text-zerion-blue-light">
-                    Please wait while we process your transaction...
+                    Please wait while we process your transaction on 0G Blockchain...
                   </p>
                 </div>
                 <span className="text-4xl">{MINTING_STEPS[mintingStep].icon}</span>
@@ -319,26 +396,27 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
               {/* Transaction Hash */}
               {transactionHash && (
                 <div className="mt-4 bg-black/40 rounded p-3 border border-green-500/30">
-                  <p className="text-xs font-pixel text-green-400 mb-1">Transaction Hash:</p>
+                  <p className="text-xs font-pixel text-green-400 mb-1">0G Transaction Hash:</p>
                   <p className="text-xs font-mono text-white break-all">{transactionHash}</p>
                 </div>
               )}
             </div>
           )}
 
-          {/* Blockchain Placeholder Notice */}
+          {/* Zerion Wallet Requirement */}
           {!isMinting && (
-            <div className="bg-blue-900/30 border-2 border-blue-500/50 rounded-lg p-4">
+            <div className="bg-purple-900/30 border-2 border-purple-500/50 rounded-lg p-4">
               <div className="flex items-start gap-3">
-                <span className="text-2xl">💡</span>
+                <span className="text-2xl">👛</span>
                 <div>
-                  <p className="text-xs font-pixel text-blue-300 font-bold mb-1">
-                    BLOCKCHAIN INTEGRATION PLACEHOLDER
+                  <p className="text-xs font-pixel text-purple-300 font-bold mb-2">
+                    ZERION WALLET REQUIRED
                   </p>
-                  <p className="text-xs font-pixel text-blue-200">
-                    This is a demo version. Real blockchain minting will be integrated soon.
-                    Add your contract logic in NFTMintModal.jsx
-                  </p>
+                  <div className="space-y-1 text-xs font-pixel text-purple-200">
+                    <p>• You need Zerion Wallet to mint the NFT</p>
+                    <p>• Social Login will not work for minting</p>
+                    <p>• The NFT will be minted on 0G Blockchain</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -361,7 +439,9 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
             >
               {isMinting 
                 ? `⏳ ${MINTING_STEPS[mintingStep].label.toUpperCase()}...` 
-                : '🎨 MINT NOW'
+                : isWhitelisted
+                  ? '🎁 MINT FREE'
+                  : '🎨 MINT FOR 5 0G'
               }
             </button>
           </div>
