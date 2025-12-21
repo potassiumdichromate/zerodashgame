@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { useWallet } from './hooks/useWallet';
 import WalletConnect from './components/WalletConnect';
@@ -14,6 +14,8 @@ import Login from './components/Login';
 import LoginModal from './components/LoginModal';
 import desktopBg from './assets/bg.png';
 import mobileBg from './assets/dbg.png';
+
+const BACKEND_URL = 'https://zerodashbackend.onrender.com';
 
 function HomeBackground() {
   return (
@@ -56,6 +58,103 @@ function GameRoot({ privyEnabled }) {
   const [showPrivyLogin, setShowPrivyLogin] = useState(false);
   const [privyWalletAddress, setPrivyWalletAddress] = useState(null);
 
+  // Player stats state
+  const [playerStats, setPlayerStats] = useState({
+    bestScore: 0,
+    totalCoins: 0,
+    rank: 0,
+  });
+  const [statsLoading, setStatsLoading] = useState(false);
+
+  /**
+   * Fetch player stats from backend
+   */
+  const fetchPlayerStats = async () => {
+    setStatsLoading(true);
+
+    try {
+      // Get wallet address from localStorage
+      const storedWalletAddress = localStorage.getItem('walletAddress');
+      
+      if (!storedWalletAddress) {
+        console.log('No wallet address found in storage');
+        setStatsLoading(false);
+        return;
+      }
+
+      const response = await fetch(`${BACKEND_URL}/player/profile`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${storedWalletAddress}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch player stats');
+      }
+
+      const data = await response.json();
+      
+      // Update stats with real data from backend
+      setPlayerStats({
+        bestScore: data.highScore || 0,
+        totalCoins: data.coins || 0,
+        rank: 0, // This would need to be calculated from leaderboard
+      });
+    } catch (err) {
+      console.error('Error fetching player stats:', err);
+      // Keep default stats on error
+      setPlayerStats({
+        bestScore: 0,
+        totalCoins: 0,
+        rank: 0,
+      });
+    } finally {
+      setStatsLoading(false);
+    }
+  };
+
+  /**
+   * Fetch player rank from leaderboard
+   */
+  const fetchPlayerRank = async () => {
+    try {
+      const storedWalletAddress = localStorage.getItem('walletAddress');
+      if (!storedWalletAddress) return;
+
+      const response = await fetch(`${BACKEND_URL}/player/leaderboard?limit=1000`);
+      
+      if (!response.ok) return;
+
+      const leaderboard = await response.json();
+      
+      // Find current player's rank
+      const playerIndex = leaderboard.findIndex(
+        player => player.walletAddress.toLowerCase() === storedWalletAddress.toLowerCase()
+      );
+      
+      if (playerIndex !== -1) {
+        setPlayerStats(prev => ({
+          ...prev,
+          rank: playerIndex + 1,
+        }));
+      }
+    } catch (err) {
+      console.error('Error fetching player rank:', err);
+    }
+  };
+
+  /**
+   * Fetch stats when menu screen is shown
+   */
+  useEffect(() => {
+    if (currentScreen === 'menu') {
+      fetchPlayerStats();
+      fetchPlayerRank();
+    }
+  }, [currentScreen]);
+
   /**
    * Handle wallet connection
    */
@@ -81,6 +180,9 @@ function GameRoot({ privyEnabled }) {
    */
   const handleBackToMenu = () => {
     setCurrentScreen('menu');
+    // Refresh stats when returning to menu
+    fetchPlayerStats();
+    fetchPlayerRank();
   };
 
   /**
@@ -173,21 +275,63 @@ function GameRoot({ privyEnabled }) {
                 🏆 LEADERBOARD
               </button>
 
-              {/* Quick Stats */}
+              {/* Quick Stats - Real Data from Backend */}
               <div className="mt-4 grid grid-cols-3 gap-3 w-full">
+                {/* Best Score */}
                 <div className="bg-zerion-blue-dark/60 border-2 border-zerion-blue rounded-lg p-3 text-center">
                   <p className="text-xs font-pixel text-zerion-blue-light mb-1">BEST</p>
-                  <p className="text-lg font-pixel text-zerion-yellow font-bold">12.5K</p>
+                  {statsLoading ? (
+                    <div className="w-4 h-4 mx-auto border-2 border-zerion-yellow border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <p className="text-lg font-pixel text-zerion-yellow font-bold">
+                      {playerStats.bestScore > 0 
+                        ? playerStats.bestScore.toLocaleString() 
+                        : '0'
+                      }
+                    </p>
+                  )}
                 </div>
+
+                {/* Total Coins */}
                 <div className="bg-zerion-blue-dark/60 border-2 border-zerion-blue rounded-lg p-3 text-center">
                   <p className="text-xs font-pixel text-zerion-blue-light mb-1">COINS</p>
-                  <p className="text-lg font-pixel text-zerion-yellow font-bold">45.6K</p>
+                  {statsLoading ? (
+                    <div className="w-4 h-4 mx-auto border-2 border-zerion-yellow border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <p className="text-lg font-pixel text-zerion-yellow font-bold">
+                      {playerStats.totalCoins > 0 
+                        ? playerStats.totalCoins.toLocaleString() 
+                        : '0'
+                      }
+                    </p>
+                  )}
                 </div>
+
+                {/* Global Rank */}
                 <div className="bg-zerion-blue-dark/60 border-2 border-zerion-blue rounded-lg p-3 text-center">
                   <p className="text-xs font-pixel text-zerion-blue-light mb-1">RANK</p>
-                  <p className="text-lg font-pixel text-zerion-yellow font-bold">#156</p>
+                  {statsLoading ? (
+                    <div className="w-4 h-4 mx-auto border-2 border-zerion-yellow border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <p className="text-lg font-pixel text-zerion-yellow font-bold">
+                      {playerStats.rank > 0 ? `#${playerStats.rank}` : '-'}
+                    </p>
+                  )}
                 </div>
               </div>
+
+              {/* Refresh Stats Button */}
+              {!statsLoading && (
+                <button
+                  onClick={() => {
+                    fetchPlayerStats();
+                    fetchPlayerRank();
+                  }}
+                  className="text-xs font-pixel text-zerion-blue-light hover:text-zerion-yellow transition-colors"
+                >
+                  🔄 Refresh Stats
+                </button>
+              )}
             </div>
           </div>
 
@@ -232,6 +376,7 @@ function GameRoot({ privyEnabled }) {
           <div>Screen: {currentScreen}</div>
           <div>Wallet: {isConnected ? '✅' : '❌'}</div>
           <div>Address: {truncatedAddress || 'Not connected'}</div>
+          <div>Stats: Best={playerStats.bestScore} Coins={playerStats.totalCoins} Rank={playerStats.rank || '-'}</div>
         </div>
       )}
 
