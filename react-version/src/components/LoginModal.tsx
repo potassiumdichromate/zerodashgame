@@ -607,16 +607,21 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
                               // 2. Force connect with Zerion specifically
                               const result = await connectWith('zerion')
 
-                              // 3. After connection, trigger login to ensure signature request
-                              // This ensures the user is actually authenticated
+                              // 3. After connection, trigger login to ensure signature request.
+                              // IMPORTANT: Even if connectWith FAILS (e.g. "Wallet already detected" or "existed_auth_flow"),
+                              // we MUST try to login() to prompt for the signature if the wallet is indeed ready.
                               if (result?.ok) {
                                 login({ loginMethods: ['wallet'] })
                               } else {
-                                // If connection failed, show our modal again to show the error
-                                if (dialogRef.current && !dialogRef.current.open) dialogRef.current.showModal()
+                                // If connection 'failed', it might just mean we are already linked.
+                                // Try logging in anyway.
+                                console.warn('Connection result not OK, attempting login anyway (fallback)...')
+                                login({ loginMethods: ['wallet'] })
                               }
                             } catch (e) {
-                              console.error(e)
+                              console.error('Overall connect flow error', e)
+                              // Final fallback
+                              login({ loginMethods: ['wallet'] })
                             }
                           })
                         }}
