@@ -640,6 +640,9 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
                           // Skip async network check to ensure synchronous user gesture
                           // Deep links will block if we await anything here
 
+                          // Close the custom modal so Privy's modal can show up (z-index fix)
+                          try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
+
                           if (hasInjectedZerionWallet()) {
                             // `connectWallet` links an external wallet; it doesn't authenticate a new user.
                             // Use `login` so the connected wallet results in an authenticated Privy session.
