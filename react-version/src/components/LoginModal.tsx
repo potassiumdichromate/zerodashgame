@@ -661,10 +661,9 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
 
                             const isMobile = window.innerWidth < 500
 
-                            // Mobile-Specific Force Logic
-                            if (isMobile && hasInjectedZerionWallet()) {
-                              // "Force" the Zerion connection by calling the specific connector
-                              // This behaves exactly like clicking "Zerion" in the wallet list
+                            // Mobile: Always deep-link to Zerion immediately to keep the action
+                            // within the user gesture (prevents first-time block on mobile).
+                            if (isMobile) {
                               await connectWith('zerion')
                               return
                             }
