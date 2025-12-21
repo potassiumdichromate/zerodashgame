@@ -1,45 +1,108 @@
 import React, { useState, useEffect } from 'react';
 
+const BACKEND_URL = 'https://zerodashbackend.onrender.com';
+
 /**
- * NFTPassStatus Component
- * Shows Zero Dash Pass status (Active/Inactive)
+ * NFTPassStatus Component - BACKEND INTEGRATED
+ * Shows Zero Dash Pass status (Active/Inactive) based on real backend data
  * If inactive, shows "Mint Now" button
  * Displays at the top of menu screen
  * 
- * @param {string} walletAddress - User's wallet address
+ * @param {string} walletAddress - User's wallet address (optional, will use localStorage)
  */
 export default function NFTPassStatus({ walletAddress }) {
   const [hasNFT, setHasNFT] = useState(false);
   const [isChecking, setIsChecking] = useState(true);
+  const [error, setError] = useState(null);
 
   /**
-   * Check if user owns Zero Dash Pass NFT
-   * TODO: Replace with actual blockchain check
+   * Check if user owns Zero Dash Pass NFT from backend
+   */
+  const checkNFTOwnership = async () => {
+    setIsChecking(true);
+    setError(null);
+
+    try {
+      // Get wallet address from localStorage
+      const storedWalletAddress = localStorage.getItem('walletAddress');
+      
+      if (!storedWalletAddress) {
+        console.log('No wallet address found');
+        setHasNFT(false);
+        setIsChecking(false);
+        return;
+      }
+
+      const response = await fetch(`${BACKEND_URL}/player/profile`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${storedWalletAddress}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch NFT status');
+      }
+
+      const data = await response.json();
+      
+      // Set NFT status from backend
+      setHasNFT(data.nftPass === true);
+      
+    } catch (err) {
+      console.error('Error checking NFT ownership:', err);
+      setError(err.message);
+      setHasNFT(false); // Default to false on error
+    } finally {
+      setIsChecking(false);
+    }
+  };
+
+  /**
+   * Check NFT ownership when component mounts or wallet changes
    */
   useEffect(() => {
-    const checkNFTOwnership = async () => {
-      setIsChecking(true);
-      
-      // Simulate API check
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // TODO: Replace with actual NFT ownership check
-      // For now, randomly assign for demo
-      const ownsNFT = Math.random() > 0.7; // 30% chance of having NFT
-      setHasNFT(ownsNFT);
-      
-      setIsChecking(false);
-    };
-
-    if (walletAddress) {
-      checkNFTOwnership();
-    }
+    checkNFTOwnership();
+    
+    // Refresh every 30 seconds
+    const interval = setInterval(checkNFTOwnership, 30000);
+    return () => clearInterval(interval);
   }, [walletAddress]);
 
+  /**
+   * Handle mint button click
+   */
   const handleMintClick = () => {
-    // TODO: Integrate NFT minting
+    // TODO: Integrate NFT minting logic
     console.log('Mint NFT clicked');
-    alert('Minting is not active currently for demo purpose');
+    
+    /* EXAMPLE BLOCKCHAIN INTEGRATION:
+    
+    try {
+      const tx = await nftContract.mint({ value: mintPrice });
+      await tx.wait();
+      
+      // Update backend
+      await fetch(`${BACKEND_URL}/player/update-nft-status`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${walletAddress}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ nftPass: true }),
+      });
+      
+      // Refresh status
+      checkNFTOwnership();
+      
+    } catch (error) {
+      console.error('Minting failed:', error);
+    }
+    
+    */
+    
+    alert('🎨 NFT Minting\n\nMinting is not active currently.\n\n💡 Add your blockchain minting logic in handleMintClick()');
   };
 
   if (isChecking) {
@@ -51,6 +114,26 @@ export default function NFTPassStatus({ walletAddress }) {
             <span className="text-xs font-pixel text-zerion-light">
               Checking NFT Pass...
             </span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-[150]">
+        <div className="bg-red-900/90 border-3 border-red-500 px-6 py-2 rounded-lg">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-pixel text-red-300">
+              ❌ Failed to check NFT Pass
+            </span>
+            <button
+              onClick={checkNFTOwnership}
+              className="text-xs font-pixel text-red-200 hover:text-white underline"
+            >
+              Retry
+            </button>
           </div>
         </div>
       </div>
@@ -148,6 +231,18 @@ export default function NFTPassStatus({ walletAddress }) {
           </div>
         )}
       </div>
+
+      {/* Refresh Indicator (Dev only) */}
+      {import.meta.env.DEV && (
+        <div className="text-center mt-1">
+          <button
+            onClick={checkNFTOwnership}
+            className="text-xs font-pixel text-white/40 hover:text-white/60"
+          >
+            🔄 Refresh NFT Status
+          </button>
+        </div>
+      )}
 
       <style jsx>{`
         @keyframes pulse {
