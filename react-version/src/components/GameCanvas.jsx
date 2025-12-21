@@ -194,7 +194,7 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
       // 🔥 SELECT BUILD URL BASED ON NFT OWNERSHIP
       const BASE_URL = hasNFT 
         ? 'https://pub-c51325b05b6848599be1cf2978bc4c0e.r2.dev/nft'   // NFT holders get premium build
-        : 'https://pub-c51325b05b6848599be1cf2978bc4c0e.r2.dev/v4';   // Free players get standard build
+        : 'https://pub-c51325b05b6848599be1cf2978bc4c0e.r2.dev/v5';   // Free players get standard build
       
       console.log(`🎮 Loading ${hasNFT ? 'PREMIUM' : 'FREE'} game build from:`, BASE_URL);
       
@@ -459,7 +459,7 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
         <div className="fixed bottom-4 left-4 bg-black/80 text-white text-xs px-3 py-2 rounded font-pixel z-[9999] space-y-1">
           <div>{isMobile ? '📱 Mobile Portrait' : '💻 Desktop Landscape'} - {dimensions.width}x{dimensions.height}</div>
           <div>🎫 NFT: {hasNFT ? 'PREMIUM ✅' : 'FREE'}</div>
-          <div>📍 Build: {hasNFT ? '/nft' : '/v4'}</div>
+          <div>📍 Build: {hasNFT ? '/nft' : '/v5'}</div>
           <div>👛 Wallet: {localStorage.getItem('walletAddress')?.slice(0, 10)}...</div>
         </div>
       )}
