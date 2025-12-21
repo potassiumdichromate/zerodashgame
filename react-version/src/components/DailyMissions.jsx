@@ -101,7 +101,7 @@ export default function DailyMissions() {
       description: `Reach ${scoreTarget} points`,
       progress: Math.min(currentHighScore, scoreTarget),
       total: scoreTarget,
-      reward: '0.001 ETH',
+      reward: '0.05 0G',
       icon: '🏆',
       completed: currentHighScore >= scoreTarget,
       type: 'score',
