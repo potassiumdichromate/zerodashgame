@@ -644,9 +644,9 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
                           try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
 
                           if (hasInjectedZerionWallet()) {
-                            // `connectWallet` links an external wallet; it doesn't authenticate a new user.
-                            // Use `login` so the connected wallet results in an authenticated Privy session.
-                            login({ loginMethods: ['wallet'] })
+                            // "Force" the Zerion connection by calling the specific connector
+                            // This behaves exactly like clicking "Zerion" in the wallet list
+                            connectWith('zerion')
                             return
                           }
                           login({ loginMethods: ['wallet'] })
