@@ -3,6 +3,7 @@ import {
   useConnectWallet,
   useLoginWithEmail,
   useLoginWithOAuth,
+  useLogin,
   usePrivy,
   useCreateWallet,
 } from '@privy-io/react-auth'
@@ -58,40 +59,6 @@ function hasInjectedZerionWallet(): boolean {
   return providers.some((p: any) => Boolean(p?.isZerion))
 }
 
-function getPrivyErrorCode(err: any): string {
-  if (!err) return ''
-  return String(err?.code ?? err?.error ?? err?.message ?? err)
-}
-
-function formatPrivyError(err: any): string {
-  const code = getPrivyErrorCode(err)
-  if (code.includes('generic_connect_wallet_error')) {
-    return 'Wallet connection failed. If you are on mobile, make sure Zerion is installed and unlocked, then tap Connect Wallet again.'
-  }
-  if (code.includes('existed_auth_flow')) {
-    return 'Connection already in progress. Please try again.'
-  }
-  return code || 'Failed to connect wallet'
-}
-
-/**
- * Helper to poll for provider injection (Critical for mobile)
- */
-async function waitForProvider(maxRetries = 50, interval = 100): Promise<boolean> {
-  console.log('LoginModal: Waiting for provider injection...')
-  for (let i = 0; i < maxRetries; i++) {
-    // Strict check: Wait specifically for Zerion flags
-    // This prevents generic window.ethereum stubs from triggering an early "ready" state
-    if (hasInjectedZerionWallet()) {
-      console.log('LoginModal: Zerion Provider detected!')
-      return true
-    }
-    await new Promise(resolve => setTimeout(resolve, interval))
-  }
-  console.log('LoginModal: Provider wait timed out')
-  return false
-}
-
 /* ============================== Icons / Small UI ============================== */
 const WalletIcon = ({ size = 18 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -126,7 +93,7 @@ const MailIcon = ({ size = 18 }: { size?: number }) => (
   </svg>
 )
 
-type WalletId = 'zerion'
+type WalletId = 'metamask' | 'coinbase_wallet' | 'okx_wallet' | 'zerion'
 
 function DividerOr() {
   return (
@@ -291,7 +258,7 @@ function WalletPickerScrollable({
   return (
     <div className="grid gap-2">
       <div className="rounded-xl border border-white/15 bg-white/5 p-3 text-sm text-white/80">
-        Zerion wallet required
+        Choose a wallet to continue
       </div>
 
       <div className="max-h-[48vh] overflow-y-auto pr-1">
@@ -302,6 +269,9 @@ function WalletPickerScrollable({
           .wallet-scroll:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.35); }
         `}</style>
         <div className="wallet-scroll grid gap-2">
+          <WalletRow label="MetaMask" hint="Browser Extension" onClick={() => connectWith('metamask')} />
+          <WalletRow label="Coinbase Wallet" hint="App / Extension" onClick={() => connectWith('coinbase_wallet')} />
+          <WalletRow label="OKX" hint="App / Extension" onClick={() => connectWith('okx_wallet')} />
           <WalletRow label="Zerion" hint="App / Extension" onClick={() => connectWith('zerion')} />
         </div>
       </div>
@@ -370,6 +340,9 @@ function CreateWalletPanel({
 
       <div className="grid gap-2 opacity-60">
         <div className="grid gap-2">
+          <WalletRow label="MetaMask" />
+          <WalletRow label="Coinbase Wallet" />
+          <WalletRow label="OKX" />
           <WalletRow label="Zerion" />
         </div>
         <GoogleButton onClick={() => { }} disabled />
@@ -390,39 +363,16 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
   const [walletMode, setWalletMode] = useState(false)
   const [creating, setCreating] = useState(false)
 
-  // Wallet detection state
-  const [isDetectingWallet, setIsDetectingWallet] = useState(true)
-  const [isConnecting, setIsConnecting] = useState(false)
-
-  useEffect(() => {
-    // Check device type
-    const isMobile = window.innerWidth < 500
-
-    // If Desktop, don't wait - enable immediately
-    if (!isMobile) {
-      setIsDetectingWallet(false)
-      return
-    }
-
-    // Mobile: Start polling immediately when modal opens
-    let mounted = true
-    const detect = async () => {
-      // Wait specifically for Zerion on mobile
-      await waitForProvider(30, 100)
-      if (mounted) setIsDetectingWallet(false)
-    }
-    detect()
-    return () => { mounted = false }
-  }, [])
-
   const { createWallet } = useCreateWallet()
   const [existingAddress, setExistingAddress] = useState<string | undefined>(getPrimaryWalletAddress(user))
   const hasAnyWallet = Boolean(existingAddress)
 
   const { connectWallet } = useConnectWallet({
-    // onSuccess: () => onClose?.(), // REMOVED: Do not auto-close. Let the auth effect handle it.
-    onError: (err: any) => setError(formatPrivyError(err)),
+    onSuccess: () => onClose?.(),
+    onError: (err: any) => setError((err?.message ?? err?.code ?? String(err)) || 'Failed to connect wallet'),
   })
+
+  const { login } = useLogin()
 
   const { initOAuth, loading: oauthLoading } = useLoginWithOAuth({
     onComplete: async () => {
@@ -480,17 +430,13 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
 
   const connectWith = async (wallet: WalletId) => {
     try {
-      // DO NOT close the dialog here. Keep it open to show "Connecting..." state.
-      // This prevents any unmount/zombie issues.
-      // try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
-
+      try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
+      onClose?.()
       await connectWallet({ walletList: [wallet] })
-      return { ok: true as const }
     } catch (err: any) {
       // eslint-disable-next-line no-console
       console.error('connectWith error', err)
-      setError(formatPrivyError(err))
-      return { ok: false as const, code: getPrivyErrorCode(err) }
+      setError(err?.message || 'Failed to connect wallet')
     }
   }
 
@@ -657,57 +603,25 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
                       <button
                         type="button"
                         className="w-full inline-flex items-center justify-center rounded-2xl border border-emerald-400/50 bg-gradient-to-tr from-emerald-400 via-teal-400 to-cyan-500 px-4 py-3 text-sm md:text-base font-bold text-white shadow-[0_10px_28px_rgba(16,185,129,0.35)] hover:shadow-[0_14px_34px_rgba(16,185,129,0.45)] active:scale-[.99] transition disabled:opacity-60"
-                        onClick={async () => {
+                        onClick={() => {
                           if (emailStep === 'enter-code') return
-                          if (isConnecting) return
-
-                          setIsConnecting(true)
-                          setError('') // Clear previous errors
-
-                          try {
-                            const isMobile = window.innerWidth < 500
-
-                            // MOBILE FIX: Close our modal so Privy/Zerion can take over the screen.
-                            // This solves "opening behind the modal".
-                            if (isMobile) {
-                              try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
+                          preflightEnsureAllowedNetwork(() => {
+                            try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
+                            if (hasInjectedZerionWallet()) {
+                              // `connectWallet` links an external wallet; it doesn't authenticate a new user.
+                              // Use `login` so the connected wallet results in an authenticated Privy session.
+                              login({ loginMethods: ['wallet'] })
+                              return
                             }
-
-                            // Connect
-                            const result = await connectWith('zerion')
-
-                            // DESKTOP FIX: If it failed or closed, make sure to show our modal again
-                            // so the user sees the error.
-                            if (result?.ok === false) {
-                              if (dialogRef.current && !dialogRef.current.open) dialogRef.current.showModal()
-                            } else {
-                              // Success!
-                              // If desktop, we might need to close it now, OR wait for auth.
-                              // The auth effect will handle the final close.
-                            }
-
-                          } catch (err: any) {
-                            console.error('Wallet connection error:', err)
-                            setError(formatPrivyError(err))
-                            // ALWAYS re-open on error so the user isn't lost
-                            if (dialogRef.current && !dialogRef.current.open) dialogRef.current.showModal()
-                          } finally {
-                            setIsConnecting(false)
-                          }
+                            login({ loginMethods: ['wallet'] })
+                          })
                         }}
-                        disabled={emailStep === 'enter-code' || !ready || isDetectingWallet || isConnecting}
+                        disabled={emailStep === 'enter-code' || !ready}
                       >
                         <span className="mr-2 inline-flex items-center">
-                          {isDetectingWallet || isConnecting ? (
-                            <div className="size-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                          ) : (
-                            <WalletIcon />
-                          )}
+                          <WalletIcon />
                         </span>
-                        <span>
-                          {isDetectingWallet ? 'Detecting Wallet...' :
-                            isConnecting ? 'Connecting...' : 'Connect Wallet'}
-                        </span>
+                        <span>Connect Wallet</span>
                       </button>
 
                       <GoogleButton
