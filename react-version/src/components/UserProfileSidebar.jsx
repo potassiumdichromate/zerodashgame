@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 
 const BACKEND_URL = 'https://zerodashbackend.onrender.com';
+const REFRESH_INTERVAL = 240000; // 4 minutes (240 seconds)
 
 /**
  * UserProfileSidebar Component
  * Displays current user's stats and progress during gameplay
  * Shows: Best Score, Total Coins, Characters, Daily Rewards, etc.
+ * Updates every 4 minutes
  */
 export default function UserProfileSidebar({ isVisible, walletAddress }) {
   const [userStats, setUserStats] = useState(null);
@@ -155,14 +157,14 @@ export default function UserProfileSidebar({ isVisible, walletAddress }) {
   };
 
   /**
-   * Initial load and auto-refresh
+   * Initial load and auto-refresh every 4 minutes
    */
   useEffect(() => {
     if (isVisible) {
       fetchUserStats();
       
-      // Refresh every 30 seconds to update "last active" and reward timer
-      const interval = setInterval(fetchUserStats, 30000);
+      // Refresh every 4 minutes to update stats
+      const interval = setInterval(fetchUserStats, REFRESH_INTERVAL);
       return () => clearInterval(interval);
     }
   }, [isVisible]);
