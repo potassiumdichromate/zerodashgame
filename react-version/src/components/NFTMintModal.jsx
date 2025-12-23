@@ -7,7 +7,7 @@ import nftPassVideo from '../assets/nftpass.mp4';
 // CONTRACT CONFIGURATION
 // ============================================
 
-const NFT_CONTRACT_ADDRESS = "0x09904F6f4013ce41dc2d7ac0fF09C26F3aD86e53";
+const NFT_CONTRACT_ADDRESS = "0x0d2145097468D78266cbf6c89974E880e3Ae5bb0";
 const BACKEND_URL = "https://zerodashbackend.onrender.com";
 
 // Minimal ABI for minting
