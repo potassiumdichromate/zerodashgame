@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
 const BACKEND_URL = 'https://zerodashbackend.onrender.com';
-const REFRESH_INTERVAL = 10000; // 10 seconds
+const REFRESH_INTERVAL = 240000; // 4 minutes (240 seconds)
 
 /**
  * Truncate wallet address for display
@@ -15,7 +15,7 @@ const truncateAddress = (address) => {
  * RealTimeLeaderboardSidebar Component
  * Displays live leaderboard during gameplay
  * Shows top 10 players with their scores
- * Updates in real-time
+ * Updates every 4 minutes
  */
 export default function RealTimeLeaderboardSidebar({ isVisible, currentUserAddress }) {
   const [leaderboard, setLeaderboard] = useState([]);
@@ -61,7 +61,7 @@ export default function RealTimeLeaderboardSidebar({ isVisible, currentUserAddre
     if (isVisible) {
       fetchLeaderboard();
       
-      // Refresh every 10 seconds
+      // Refresh every 4 minutes
       const interval = setInterval(fetchLeaderboard, REFRESH_INTERVAL);
       return () => clearInterval(interval);
     }
@@ -205,7 +205,7 @@ export default function RealTimeLeaderboardSidebar({ isVisible, currentUserAddre
         {/* Footer */}
         <div className="bg-zerion-blue-dark/80 p-3 border-t-4 border-zerion-blue">
           <p className="text-xs font-pixel text-zerion-blue-light text-center">
-            Updates every {REFRESH_INTERVAL / 1000}s
+            Updates every {REFRESH_INTERVAL / 1000 / 60} min
           </p>
         </div>
       </div>
