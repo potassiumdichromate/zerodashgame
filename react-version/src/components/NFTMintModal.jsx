@@ -10,7 +10,7 @@ import nftPassVideo from '../assets/nftpass.mp4';
 const NFT_CONTRACT_ADDRESS = "0x0d2145097468D78266cbf6c89974E880e3Ae5bb0";
 const BACKEND_URL = "https://zerodashbackend.onrender.com";
 
-// Minimal ABI for minting
+// Minimal ABI for minting (not used in gasless version, but kept for reference)
 const NFT_ABI = [
   "function mint(bytes32[] calldata merkleProof) external payable",
   "function hasMinted(address account) external view returns (bool)",
@@ -20,9 +20,10 @@ const NFT_ABI = [
 ];
 
 /**
- * NFTMintModal Component with Merkle Tree Whitelist
+ * NFTMintModal Component - GASLESS VERSION
  * Premium NFT Pass minting modal with video preview
- * Mints on 0G Blockchain - Works with Privy Wallet
+ * Mints on 0G Blockchain - ZERO GAS FEES FOR USERS
+ * Deployer pays all gas fees via backend relayer
  * 
  * @param {Object} props
  * @param {boolean} props.isOpen - Modal visibility state
@@ -34,7 +35,7 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
   const { wallets } = useWallets();
   
   const [isMinting, setIsMinting] = useState(false);
-  const [mintingStep, setMintingStep] = useState(0); // 0: ready, 1: processing, 2: confirming, 3: success
+  const [mintingStep, setMintingStep] = useState(0);
   const [transactionHash, setTransactionHash] = useState('');
   const [walletAddress, setWalletAddress] = useState('');
   const [hasMinted, setHasMinted] = useState(false);
@@ -46,11 +47,12 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
   
   const videoRef = useRef(null);
 
-  // Minting steps for UI feedback
+  // Minting steps for GASLESS UI feedback
   const MINTING_STEPS = [
     { label: 'Ready to Mint', icon: '🎨', color: 'text-blue-400' },
-    { label: 'Initializing Transaction', icon: '⚡', color: 'text-yellow-400' },
-    { label: 'Confirming on 0G Blockchain', icon: '⛓️', color: 'text-orange-400' },
+    { label: 'Sign Message (No Gas!)', icon: '📝', color: 'text-yellow-400' },
+    { label: 'Backend Processing', icon: '⚡', color: 'text-orange-400' },
+    { label: 'Confirming on 0G Blockchain', icon: '⛓️', color: 'text-purple-400' },
     { label: 'Minted Successfully!', icon: '✅', color: 'text-green-400' },
   ];
 
@@ -95,24 +97,21 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
           console.log('✅ Whitelist check:', whitelistData.message);
         }
 
-        // Check if already minted from contract
+        // Check if already minted from backend (simpler than contract call)
         try {
-          // Use Privy wallet provider
-          const embeddedWallet = wallets.find((wallet) => 
-            wallet.walletClientType === 'privy' || wallet.walletClientType === 'embedded'
-          ) || wallets[0];
+          const profileResponse = await fetch(`${BACKEND_URL}/player/profile`, {
+            headers: {
+              'Authorization': `Bearer ${walletAddress}`,
+            },
+          });
           
-          if (embeddedWallet) {
-            const provider = await embeddedWallet.getEthereumProvider();
-            const ethersProvider = new ethers.BrowserProvider(provider);
-            const contract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_ABI, ethersProvider);
-            
-            const minted = await contract.hasMinted(walletAddress);
-            setHasMinted(minted);
-            console.log('Mint status:', minted ? 'Already minted' : 'Not minted');
+          if (profileResponse.ok) {
+            const profileData = await profileResponse.json();
+            setHasMinted(profileData.nftPass === true);
+            console.log('Mint status:', profileData.nftPass ? 'Already minted' : 'Not minted');
           }
         } catch (error) {
-          console.warn('Could not check mint status:', error);
+          console.warn('Could not check mint status from backend:', error);
         }
 
       } catch (error) {
@@ -169,9 +168,9 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
   }, [isOpen]);
 
   /**
-   * Handle NFT minting process with Merkle proof
+   * GASLESS MINTING - User signs message, backend pays gas
    */
-  const handleMint = async () => {
+  const handleGaslessMint = async () => {
     if (!authenticated || !walletAddress) {
       alert('❌ Please connect your wallet first');
       return;
@@ -186,140 +185,111 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
     setMintingStep(1);
 
     try {
-      // Check if wallet is available
+      console.log('🎫 Starting gasless mint...');
+      console.log('   Wallet:', walletAddress);
+      console.log('   Whitelisted:', isWhitelisted);
+
+      // Step 1: Get wallet provider (just for signing, no gas!)
       if (!window.ethereum) {
         throw new Error('Please connect your wallet');
       }
 
-      // Step 1: Switch to 0G Mainnet (Chain ID: 16661 = 0x4115)
-      try {
-        await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: '0x4115' }], // 16661 in hex
-        });
-        console.log('✅ Switched to 0G Mainnet');
-      } catch (switchError) {
-        // If chain doesn't exist, try to add it
-        if (switchError.code === 4902) {
-          try {
-            await window.ethereum.request({
-              method: 'wallet_addEthereumChain',
-              params: [{
-                chainId: '0x4115',
-                chainName: '0G Blockchain',
-                rpcUrls: ['https://evmrpc.0g.ai'],
-                nativeCurrency: {
-                  name: '0G',
-                  symbol: '0G',
-                  decimals: 18
-                },
-                blockExplorerUrls: ['https://explorer.0g.ai']
-              }],
-            });
-            console.log('✅ Added and switched to 0G Mainnet');
-          } catch (addError) {
-            throw new Error('Failed to add 0G network. Please add it manually.');
-          }
-        } else {
-          console.warn('Chain switch warning:', switchError);
-        }
-      }
-
-      // Step 2: Get provider and signer
       const ethersProvider = new ethers.BrowserProvider(window.ethereum);
       const signer = await ethersProvider.getSigner();
-      console.log('✅ Got provider and signer');
-
-      // Step 3: Connect to contract
-      const nftContract = new ethers.Contract(NFT_CONTRACT_ADDRESS, NFT_ABI, signer);
-
-      // Step 4: Prepare transaction
-      const mintPrice = isWhitelisted ? 0 : ethers.parseEther('5');
-      
-      console.log('🎨 Minting NFT...');
-      console.log('   Address:', walletAddress);
-      console.log('   Whitelisted:', isWhitelisted);
-      console.log('   Price:', isWhitelisted ? 'FREE' : '5 0G');
-      console.log('   Proof length:', merkleProof.length);
 
       setMintingStep(2);
 
-      // Step 5: Call mint function with Merkle proof
-      const tx = await nftContract.mint(merkleProof, {
-        value: mintPrice,
-        gasLimit: 300000
-      });
-
-      console.log('⏳ Transaction submitted:', tx.hash);
-      setTransactionHash(tx.hash);
-
-      // Step 6: Wait for confirmation
-      const receipt = await tx.wait();
-      console.log('✅ Transaction confirmed!', receipt);
+      // Step 2: User signs message (NO GAS NEEDED!)
+      console.log('📝 Requesting signature from user...');
+      const message = `Mint Zero Dash Pass NFT to ${walletAddress}`;
+      
+      let signature;
+      try {
+        signature = await signer.signMessage(message);
+        console.log('✅ Signature received');
+      } catch (error) {
+        if (error.code === 4001 || error.code === 'ACTION_REJECTED') {
+          throw new Error('Signature rejected by user');
+        }
+        throw error;
+      }
 
       setMintingStep(3);
 
-      // Step 7: Update backend with NFT pass status
-      try {
-        const updateResponse = await fetch(`${BACKEND_URL}/player/nft-pass`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${walletAddress}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ 
-            walletAddress,
-            nftPass: true,
-            transactionHash: tx.hash,
-            blockchain: '0G',
-            contractAddress: NFT_CONTRACT_ADDRESS,
-            mintPrice: isWhitelisted ? '0' : '5',
-            whitelisted: isWhitelisted
-          }),
-        });
+      // Step 3: Send to backend - BACKEND PAYS ALL GAS!
+      console.log('🚀 Sending to backend relayer...');
+      console.log('   Merkle proof length:', merkleProof?.length || 0);
 
-        if (updateResponse.ok) {
-          console.log('✅ Backend updated with NFT status');
-        } else {
-          console.warn('⚠️  Failed to update backend, but NFT minted successfully');
-        }
-      } catch (backendError) {
-        console.warn('⚠️  Backend update error:', backendError);
-        // Don't throw - NFT is minted successfully
+      const response = await fetch(`${BACKEND_URL}/nft/mint-gasless`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${walletAddress}`
+        },
+        body: JSON.stringify({
+          walletAddress,
+          merkleProof: merkleProof || [],
+          signature
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Backend request failed');
       }
+
+      if (!data.success) {
+        throw new Error(data.message || 'Minting failed');
+      }
+
+      console.log('✅ NFT minted successfully!');
+      console.log('   Transaction:', data.transactionHash);
+      console.log('   Token ID:', data.tokenId);
+      console.log('   Gas paid by deployer:', data.gasPaidByDeployer);
+
+      setTransactionHash(data.transactionHash);
+      setMintingStep(4);
 
       // Success!
       setHasMinted(true);
 
-      // Wait to show success message
+      // Show success message
+      const successMessage = isWhitelisted
+        ? '🎉 NFT minted for FREE!\n\n✅ No gas fees paid!\n✅ Deployer covered all costs!'
+        : '🎉 NFT minted successfully!\n\n💎 You paid: 5 0G\n✅ Gas fees paid by deployer!\n✅ Zero gas from you!';
+      
+      alert(successMessage);
+
+      // Wait to show success
       await new Promise(resolve => setTimeout(resolve, 2000));
 
-      // Callback to parent component
+      // Callback
       if (onMintSuccess) {
         onMintSuccess();
       }
 
-      // Auto-close after success
+      // Auto-close
       setTimeout(() => {
         handleClose();
       }, 1000);
 
     } catch (error) {
-      console.error('❌ Minting failed:', error);
+      console.error('❌ Gasless minting failed:', error);
       
       let errorMessage = 'Transaction failed. Please try again.';
       
-      if (error.code === 'ACTION_REJECTED' || error.code === 4001) {
-        errorMessage = 'Transaction cancelled by user.';
-      } else if (error.message?.includes('Already minted')) {
+      if (error.message?.includes('Signature rejected')) {
+        errorMessage = 'You rejected the signature request. Please try again.';
+      } else if (error.message?.includes('Already minted') || error.message?.includes('already minted')) {
         errorMessage = 'You already minted your NFT Pass!';
         setHasMinted(true);
-      } else if (error.message?.includes('insufficient funds')) {
-        errorMessage = `Insufficient 0G balance. You need ${isWhitelisted ? '~0.0001' : '5+'} 0G.`;
-      } else if (error.message?.includes('Max supply reached')) {
+      } else if (error.message?.includes('Relayer out of funds')) {
+        errorMessage = 'Service temporarily unavailable. Please contact support.';
+      } else if (error.message?.includes('Max supply')) {
         errorMessage = 'Sorry, all NFTs have been minted!';
-      } else if (error.message?.includes('user rejected')) {
-        errorMessage = 'Transaction rejected. Please try again.';
+      } else if (error.message?.includes('Signature verification failed')) {
+        errorMessage = 'Please sign with the correct wallet.';
       } else if (error.message) {
         errorMessage = error.message;
       }
@@ -334,7 +304,7 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
    * Handle modal close
    */
   const handleClose = () => {
-    if (isMinting && mintingStep !== 3) {
+    if (isMinting && mintingStep !== 4) {
       // Don't close during minting (except on success)
       return;
     }
@@ -377,7 +347,7 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
                 🎫 ZERO DASH PASS
               </h2>
               <p className="text-sm font-pixel text-zerion-blue-light">
-                Mint your exclusive NFT Pass on 0G Blockchain
+                Mint your exclusive NFT Pass - Zero Gas Fees!
               </p>
             </div>
             
@@ -405,15 +375,15 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
             autoPlay
           />
           
-          {/* Video Overlay Badge */}
+          {/* Zero Gas Badge */}
           <div className="absolute top-4 right-4 bg-gradient-to-r from-yellow-500 to-orange-500 
                           border-3 border-yellow-400 rounded-lg px-4 py-2">
             <p className="text-xs font-pixel text-white font-bold">
-              EXCLUSIVE NFT
+              ⚡ ZERO GAS!
             </p>
           </div>
 
-          {/* Whitelist Badge - VISIBLE INDICATOR */}
+          {/* Whitelist Badge */}
           {!whitelistChecking && isWhitelisted && (
             <div className="absolute top-4 left-4 bg-gradient-to-r from-green-500 to-emerald-500 
                             border-3 border-green-400 rounded-lg px-4 py-2 animate-pulse">
@@ -487,7 +457,7 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
             </div>
           </div>
 
-          {/* Minting Price */}
+          {/* Minting Price - GASLESS VERSION */}
           {!whitelistChecking && (
             <div className={`bg-gradient-to-r border-3 rounded-lg p-5 ${
               isWhitelisted
@@ -505,13 +475,15 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
                     <>
                       <p className="text-3xl font-pixel text-green-400 font-bold">FREE</p>
                       <p className="text-xs font-pixel text-green-200 mt-1">
-                        <span className="line-through opacity-50">5 0G</span> → 0 0G + gas
+                        ⚡ ZERO GAS - Deployer pays all fees!
                       </p>
                     </>
                   ) : (
                     <>
                       <p className="text-3xl font-pixel text-zerion-yellow font-bold">5 0G</p>
-                      <p className="text-xs font-pixel text-yellow-200 mt-1">+ gas (~0.0001 0G)</p>
+                      <p className="text-xs font-pixel text-yellow-200 mt-1">
+                        ⚡ ZERO GAS - Deployer pays gas!
+                      </p>
                     </>
                   )}
                 </div>
@@ -530,7 +502,10 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
                     {MINTING_STEPS[mintingStep].label}
                   </p>
                   <p className="text-xs font-pixel text-zerion-blue-light">
-                    Please wait while we process your transaction on 0G Blockchain...
+                    {mintingStep === 1 && 'Just sign the message - no gas needed!'}
+                    {mintingStep === 2 && 'Backend processing your request...'}
+                    {mintingStep === 3 && 'Deployer paying gas and minting...'}
+                    {mintingStep === 4 && 'Success! NFT is yours!'}
                   </p>
                 </div>
                 <span className="text-4xl">{MINTING_STEPS[mintingStep].icon}</span>
@@ -540,7 +515,7 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
               <div className="relative h-3 bg-zerion-blue-dark rounded-full overflow-hidden border-2 border-zerion-blue">
                 <div
                   className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-500 to-zerion-yellow transition-all duration-500"
-                  style={{ width: `${(mintingStep / 3) * 100}%` }}
+                  style={{ width: `${(mintingStep / 4) * 100}%` }}
                 />
               </div>
 
@@ -561,7 +536,7 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
             </div>
           )}
 
-          {/* Privy Wallet Info */}
+          {/* Wallet Info */}
           {!isMinting && authenticated && walletAddress && (
             <div className="bg-purple-900/30 border-2 border-purple-500/50 rounded-lg p-4">
               <div className="flex items-start gap-3">
@@ -574,6 +549,7 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
                     <p>• Wallet: {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</p>
                     <p>• Network: 0G Blockchain</p>
                     <p>• Status: {whitelistChecking ? 'Checking...' : isWhitelisted ? '✅ Whitelisted' : 'Public Mint'}</p>
+                    <p>• Gas Fee: ⚡ ZERO (Deployer pays!)</p>
                   </div>
                 </div>
               </div>
@@ -601,14 +577,14 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
           <div className="flex gap-4">
             <button
               onClick={handleClose}
-              disabled={isMinting && mintingStep !== 3}
+              disabled={isMinting && mintingStep !== 4}
               className="flex-1 pixel-button-secondary text-sm py-4"
             >
-              {mintingStep === 3 ? '✅ CLOSE' : '← CANCEL'}
+              {mintingStep === 4 ? '✅ CLOSE' : '← CANCEL'}
             </button>
             
             <button
-              onClick={handleMint}
+              onClick={handleGaslessMint}
               disabled={isMinting || !authenticated || hasMinted || whitelistChecking || !walletAddress}
               className="flex-1 pixel-button-primary text-sm py-4 disabled:opacity-50 disabled:cursor-not-allowed"
             >
@@ -623,8 +599,8 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
                       : isMinting 
                         ? `⏳ ${MINTING_STEPS[mintingStep].label.toUpperCase()}...` 
                         : isWhitelisted
-                          ? '🎁 MINT FREE'
-                          : '💎 MINT FOR 5 0G'
+                          ? '🎁 MINT FREE (NO GAS!)'
+                          : '💎 MINT 5 0G (NO GAS!)'
               }
             </button>
           </div>
@@ -632,7 +608,7 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
           {/* Footer Notice */}
           <div className="text-center">
             <p className="text-xs font-pixel text-zerion-blue-light">
-              By minting, you agree to our terms and conditions • Powered by 0G Blockchain
+              ⚡ Zero gas fees - Deployer pays all transaction costs • Powered by 0G Blockchain
             </p>
           </div>
         </div>
