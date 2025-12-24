@@ -256,8 +256,8 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
 
       // Show success message
       const successMessage = isWhitelisted
-        ? '🎉 NFT minted for FREE!\n\n✅ No gas fees paid!\n✅ Deployer covered all costs!'
-        : '🎉 NFT minted successfully!\n\n💎 You paid: 5 0G\n✅ Gas fees paid by deployer!\n✅ Zero gas from you!';
+        ? '🎉 NFT minted for FREE!\n'
+        : '🎉 NFT minted successfully!\n\n💎 You paid: 5 0G\n';
       
       alert(successMessage);
 
