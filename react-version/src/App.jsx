@@ -12,6 +12,8 @@ import NFTPassStatus from './components/NFTPassStatus';
 import Particles from './components/Particles';
 import Login from './components/Login';
 import LoginModal from './components/LoginModal';
+import AIBotMike from './components/AIBotMike';
+import BackgroundMusic from './components/BackgroundMusic';
 import desktopBg from './assets/bg.png';
 import mobileBg from './assets/dbg.png';
 
@@ -206,6 +208,11 @@ function GameRoot({ privyEnabled }) {
       {/* Particle Animation Background */}
       <Particles />
 
+      {/* Background Music - Plays on splash and menu, stops on game */}
+      <BackgroundMusic 
+        isPlaying={currentScreen !== 'game'} 
+      />
+
       {/* Wallet Address Display (Top Right) */}
       {isConnected && (
         <div
@@ -369,6 +376,11 @@ function GameRoot({ privyEnabled }) {
         isOpen={showLeaderboard}
         onClose={handleCloseLeaderboard}
       />
+
+      {/* AI Bot Mike - Available on Menu and Game Screens */}
+      {(currentScreen === 'menu' || currentScreen === 'game') && (
+        <AIBotMike />
+      )}
 
       {/* Debug Info (Development Only) */}
       {import.meta.env.DEV && (
