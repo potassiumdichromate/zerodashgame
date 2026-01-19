@@ -193,8 +193,8 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
       
       // 🔥 SELECT BUILD URL BASED ON NFT OWNERSHIP
       const BASE_URL = hasNFT 
-        ? 'https://pub-c51325b05b6848599be1cf2978bc4c0e.r2.dev/v9'   // NFT holders get premium build
-        : 'https://pub-c51325b05b6848599be1cf2978bc4c0e.r2.dev/v9';   // Free players get standard build
+        ? 'https://pub-c51325b05b6848599be1cf2978bc4c0e.r2.dev/v10'   // NFT holders get premium build
+        : 'https://pub-c51325b05b6848599be1cf2978bc4c0e.r2.dev/v10';   // Free players get standard build
       
       console.log(`🎮 Loading ${hasNFT ? 'PREMIUM' : 'FREE'} game build from:`, BASE_URL);
       
