@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
+import { usePrivy } from '@privy-io/react-auth';
 import { useWallet } from './hooks/useWallet';
 import WalletConnect from './components/WalletConnect';
 import Leaderboard from './components/Leaderboard';
@@ -18,6 +19,9 @@ import desktopBg from './assets/bg.png';
 import mobileBg from './assets/dbg.png';
 
 const BACKEND_URL = 'https://zerodashbackend.onrender.com';
+
+
+
 
 function HomeBackground() {
   return (
@@ -52,13 +56,17 @@ function GameRoot({ privyEnabled }) {
     isConnected,
     error: walletError,
     connectWallet,
+    disconnectWallet,
   } = useWallet();
+
+  const { logout: privyLogout } = usePrivy();
 
   // Screen state
   const [currentScreen, setCurrentScreen] = useState('splash'); // 'splash' | 'menu' | 'game'
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showPrivyLogin, setShowPrivyLogin] = useState(false);
   const [privyWalletAddress, setPrivyWalletAddress] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   // Player stats state
   const [playerStats, setPlayerStats] = useState({
@@ -158,6 +166,21 @@ function GameRoot({ privyEnabled }) {
   }, [currentScreen]);
 
   /**
+   * Handle logout - properly resets all state without page reload
+   */
+  const handleLogout = async () => {
+    disconnectWallet();
+    localStorage.removeItem('walletAddress');
+    localStorage.removeItem('privySession');
+    try {
+      await privyLogout();
+    } catch {}
+    setPrivyWalletAddress(null);
+    setCurrentScreen('splash');
+    setShowLeaderboard(false);
+  };
+
+  /**
    * Handle wallet connection
    */
   const handleConnect = async () => {
@@ -213,22 +236,47 @@ function GameRoot({ privyEnabled }) {
         isPlaying={currentScreen !== 'game'} 
       />
 
-      {/* Wallet Address Display (Top Right) */}
-      {isConnected && (
+      {/* Wallet Address + Logout (Top Right) */}
+      {(isConnected || privyWalletAddress) && currentScreen !== 'splash' && (
         <div
-          className={`fixed top-5 right-5 z-[1000] px-5 py-3 text-xs font-bold
-                      transition-all duration-400
-                      ${currentScreen !== 'splash' ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-5'}`}
-          style={{
-            background: 'linear-gradient(135deg, #0A1628 0%, #1a2d4d 100%)',
-            border: '4px solid #ffd700',
-            color: '#ffd700',
-            textShadow: '2px 2px 0 rgba(0, 0, 0, 0.8)',
-            boxShadow: '0 4px 0 #f59e0b, 0 8px 20px rgba(255, 215, 0, 0.4)',
-            imageRendering: 'pixelated',
-          }}
+          className="fixed top-5 right-5 z-[1000] flex items-center gap-2 transition-all duration-400 opacity-100 translate-y-0"
         >
-          {truncatedAddress}
+          <div
+            className="px-5 py-3 text-xs font-bold cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95"
+            title="Click to copy address"
+            onClick={() => {
+              const fullAddress = walletAddress || privyWalletAddress;
+              if (fullAddress) {
+                navigator.clipboard.writeText(fullAddress);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+              }
+            }}
+            style={{
+              background: 'linear-gradient(135deg, #0A1628 0%, #1a2d4d 100%)',
+              border: '4px solid #ffd700',
+              color: '#ffd700',
+              textShadow: '2px 2px 0 rgba(0, 0, 0, 0.8)',
+              boxShadow: '0 4px 0 #f59e0b, 0 8px 20px rgba(255, 215, 0, 0.4)',
+              imageRendering: 'pixelated',
+            }}
+          >
+            {copied ? 'Copied!' : (truncatedAddress || `${privyWalletAddress?.slice(0, 6)}...${privyWalletAddress?.slice(-4)}`)}
+          </div>
+          <button
+            onClick={handleLogout}
+            className="px-4 py-3 text-xs font-pixel font-bold cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95"
+            style={{
+              background: 'linear-gradient(135deg, #0A1628 0%, #1a2d4d 100%)',
+              border: '4px solid #ffd700',
+              color: '#ffd700',
+              textShadow: '2px 2px 0 rgba(0, 0, 0, 0.8)',
+              boxShadow: '0 4px 0 #f59e0b, 0 8px 20px rgba(255, 215, 0, 0.4)',
+              imageRendering: 'pixelated',
+            }}
+          >
+            LOGOUT
+          </button>
         </div>
       )}
 
