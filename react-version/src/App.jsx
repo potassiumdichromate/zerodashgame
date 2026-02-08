@@ -336,39 +336,6 @@ function GameRootContent({ privyEnabled }) {
 
       {(currentScreen === 'menu' || currentScreen === 'game') && <AIBotMike />}
 
-      {/* TEST BUTTON */}
-      {(currentScreen === 'menu' || currentScreen === 'game') && (
-        <button
-          onClick={() => {
-            console.log('🧪 TEST TOAST CLICKED');
-            console.log('🧪 showToast function:', showToast);
-            showToast({
-              title: '🧪 Test Toast',
-              description: 'If you see this, the toast system is working!',
-              txHash: '0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef',
-              duration: 10000
-            });
-          }}
-          style={{
-            position: 'fixed',
-            bottom: '20px',
-            right: '20px',
-            padding: '15px 30px',
-            background: 'linear-gradient(135deg, #00d4ff, #7209b7)',
-            color: 'white',
-            border: '2px solid #00d4ff',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            zIndex: 99998,
-            fontWeight: 'bold',
-            fontSize: '16px',
-            boxShadow: '0 4px 15px rgba(0, 212, 255, 0.4)'
-          }}
-        >
-          🧪 TEST TOAST
-        </button>
-      )}
-
       {import.meta.env.DEV && (
         <div className="fixed bottom-2 left-2 text-xs opacity-50 font-mono bg-black/50 p-2 rounded z-[9999]">
           <div>Screen: {currentScreen}</div>
