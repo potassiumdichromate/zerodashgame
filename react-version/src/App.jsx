@@ -456,14 +456,13 @@ function GameRoot({ privyEnabled }) {
 
 function App({ privyEnabled = true }) {
   return (
-    <BlockchainToastProvider> {/* NEW: Wrap entire app */}
+    <BlockchainToastProvider>
       <Routes>
         <Route path="/" element={<GameRoot privyEnabled={privyEnabled} />} />
         {privyEnabled && <Route path="/login" element={<Login />} />}
-        {/* Fallback: send any unknown routes back to the main game */}
         <Route path="*" element={<GameRoot privyEnabled={privyEnabled} />} />
       </Routes>
-    </BlockchainToastProvider> {/* END NEW */}
+    </BlockchainToastProvider>
   );
 }
 
