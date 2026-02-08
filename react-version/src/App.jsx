@@ -454,11 +454,6 @@ function GameRoot({ privyEnabled }) {
   );
 }
 
-/**
- * App router - WRAPPED WITH BLOCKCHAIN TOAST PROVIDER
- * - "/"      → main Zero Dash experience
- * - "/login" → Privy login page with Connect Wallet modal
- */
 function App({ privyEnabled = true }) {
   return (
     <BlockchainToastProvider> {/* NEW: Wrap entire app */}
