@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { usePrivy } from '@privy-io/react-auth';
 import { useWallet } from './hooks/useWallet';
+import { BlockchainToastProvider } from './context/BlockchainToastContext'; // NEW IMPORT
 import WalletConnect from './components/WalletConnect';
 import Leaderboard from './components/Leaderboard';
 import GameCanvas from './components/GameCanvas';
@@ -19,9 +20,6 @@ import desktopBg from './assets/bg.png';
 import mobileBg from './assets/dbg.png';
 
 const BACKEND_URL = 'https://zerodashbackend.onrender.com';
-
-
-
 
 function HomeBackground() {
   return (
@@ -457,18 +455,20 @@ function GameRoot({ privyEnabled }) {
 }
 
 /**
- * App router
+ * App router - WRAPPED WITH BLOCKCHAIN TOAST PROVIDER
  * - "/"      → main Zero Dash experience
  * - "/login" → Privy login page with Connect Wallet modal
  */
 function App({ privyEnabled = true }) {
   return (
-    <Routes>
-      <Route path="/" element={<GameRoot privyEnabled={privyEnabled} />} />
-      {privyEnabled && <Route path="/login" element={<Login />} />}
-      {/* Fallback: send any unknown routes back to the main game */}
-      <Route path="*" element={<GameRoot privyEnabled={privyEnabled} />} />
-    </Routes>
+    <BlockchainToastProvider> {/* NEW: Wrap entire app */}
+      <Routes>
+        <Route path="/" element={<GameRoot privyEnabled={privyEnabled} />} />
+        {privyEnabled && <Route path="/login" element={<Login />} />}
+        {/* Fallback: send any unknown routes back to the main game */}
+        <Route path="*" element={<GameRoot privyEnabled={privyEnabled} />} />
+      </Routes>
+    </BlockchainToastProvider> {/* END NEW */}
   );
 }
 
