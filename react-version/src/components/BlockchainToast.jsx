@@ -1,5 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { X, ExternalLink, Zap, AlertCircle } from 'lucide-react';
+import './BlockchainToast.css';
 
 const BLOCK_EXPLORER = 'https://chainscan.0g.ai/tx/';
 
@@ -12,6 +14,18 @@ export default function BlockchainToast({ toast, onClose, style }) {
     }
   };
 
+  // Auto-dismiss
+  useEffect(() => {
+    if (toast.duration) {
+      const timer = setTimeout(() => {
+        onClose();
+      }, toast.duration);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [toast.duration, onClose]);
+
+  // Determine if this is an error/warning toast
   const isError = toast.title.includes('❌') || toast.title.includes('Failed');
   const isWarning = !toast.txHash && !isError;
 
@@ -27,7 +41,7 @@ export default function BlockchainToast({ toast, onClose, style }) {
       >
         {/* Icon */}
         <div className={`toast-icon ${isError ? 'icon-error' : isWarning ? 'icon-warning' : ''}`}>
-          {isError ? '⚠️' : '⚡'}
+          {isError ? <AlertCircle size={24} /> : <Zap size={24} />}
         </div>
 
         {/* Content */}
@@ -35,7 +49,7 @@ export default function BlockchainToast({ toast, onClose, style }) {
           <div className="toast-header">
             <h4>{toast.title}</h4>
             <button className="toast-close" onClick={onClose}>
-              ×
+              <X size={16} />
             </button>
           </div>
           
@@ -46,11 +60,11 @@ export default function BlockchainToast({ toast, onClose, style }) {
               <span className="tx-hash">
                 {toast.txHash.slice(0, 10)}...{toast.txHash.slice(-8)}
               </span>
-              <span className="external-icon">↗</span>
+              <ExternalLink size={14} />
             </button>
           ) : isWarning ? (
             <div className="toast-warning-text">
-              <span>⚠️</span>
+              <AlertCircle size={14} />
               <span>Blockchain recording pending</span>
             </div>
           ) : null}
