@@ -51,7 +51,7 @@ export const BlockchainToastProvider = ({ children }) => {
     <BlockchainToastContext.Provider value={{ showToast, hideToast }}>
       {children}
       {/* Render all toasts */}
-      <div className="toast-container" style={{ position: 'fixed', top: 0, right: 0, zIndex: 99999 }}>
+      <div className="toast-container" style={{ position: 'fixed', top: 0, right: 0, zIndex: 999999, pointerEvents: 'none' }}>
         {console.log('🔔 [TOAST] Rendering toast container with', toasts.length, 'toasts')}
         {toasts.map((toast, index) => {
           console.log('🔔 [TOAST] Rendering toast:', toast.id, toast);
@@ -60,7 +60,7 @@ export const BlockchainToastProvider = ({ children }) => {
               key={toast.id} 
               toast={toast} 
               onClose={() => hideToast(toast.id)}
-              style={{ top: `${80 + index * 120}px` }}
+              style={{ top: `${80 + index * 120}px`, pointerEvents: 'auto' }}
             />
           );
         })}
