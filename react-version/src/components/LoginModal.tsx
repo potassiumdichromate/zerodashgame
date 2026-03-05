@@ -47,18 +47,6 @@ function deriveAuthMethodFromUser(user: any | undefined | null): 'email' | 'oaut
   return null
 }
 
-function hasInjectedZerionWallet(): boolean {
-  const w = window as any
-  const eth = w?.ethereum
-  if (!eth) return false
-
-  if (eth.isZerion) return true
-  if (w.zerionWallet || w.zerion) return true
-
-  const providers = Array.isArray(eth.providers) ? eth.providers : []
-  return providers.some((p: any) => Boolean(p?.isZerion))
-}
-
 /* ============================== Icons / Small UI ============================== */
 const WalletIcon = ({ size = 18 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -93,7 +81,29 @@ const MailIcon = ({ size = 18 }: { size?: number }) => (
   </svg>
 )
 
-type WalletId = 'zerion'
+type WalletId =
+  | 'metamask'
+  | 'coinbase_wallet'
+  | 'rainbow'
+  | 'phantom'
+  | 'zerion'
+  | 'uniswap'
+  | 'okx_wallet'
+  | 'detected_ethereum_wallets'
+  | 'wallet_connect'
+  | 'bitget_wallet'
+
+const ALL_REQUESTED_WALLETS = [
+  'detected_ethereum_wallets',
+  'wallet_connect',
+  'metamask',
+  'coinbase_wallet',
+  'rainbow',
+  'phantom',
+  'zerion',
+  'uniswap',
+  'okx_wallet',
+] as const
 
 function DividerOr() {
   return (
@@ -269,7 +279,16 @@ function WalletPickerScrollable({
           .wallet-scroll:hover::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.35); }
         `}</style>
         <div className="wallet-scroll grid gap-2">
-          <WalletRow label="Zerion" hint="App / Extension" onClick={() => connectWith('zerion')} />
+          <WalletRow label="Detected Wallet" hint="Browser / Extension" onClick={() => connectWith('detected_ethereum_wallets')} />
+          <WalletRow label="MetaMask" hint="Extension" onClick={() => connectWith('metamask')} />
+          <WalletRow label="Coinbase Wallet" hint="Extension / App" onClick={() => connectWith('coinbase_wallet')} />
+          <WalletRow label="Base" hint="via Coinbase Wallet" onClick={() => connectWith('coinbase_wallet')} />
+          <WalletRow label="Rainbow" hint="Extension / App" onClick={() => connectWith('rainbow')} />
+          <WalletRow label="Phantom" hint="Extension / App" onClick={() => connectWith('phantom')} />
+          <WalletRow label="Zerion" hint="Extension / App" onClick={() => connectWith('zerion')} />
+          <WalletRow label="Uniswap Wallet" hint="Extension / App" onClick={() => connectWith('uniswap')} />
+          <WalletRow label="OKX Wallet" hint="Extension / App" onClick={() => connectWith('okx_wallet')} />
+          <WalletRow label="Bitget Wallet" hint="Extension / App" onClick={() => connectWith('bitget_wallet')} />
         </div>
       </div>
 
@@ -337,7 +356,7 @@ function CreateWalletPanel({
 
       <div className="grid gap-2 opacity-60">
         <div className="grid gap-2">
-          <WalletRow label="Zerion" />
+          <WalletRow label="Wallet" />
         </div>
         <GoogleButton onClick={() => { }} disabled />
       </div>
@@ -426,7 +445,11 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
     try {
       try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
       onClose?.()
-      await connectWallet({ walletList: [wallet] })
+      if (wallet === 'bitget_wallet') {
+        await connectWallet({ walletList: ['wallet_connect'] })
+      } else {
+        await connectWallet({ walletList: [wallet] })
+      }
     } catch (err: any) {
       // eslint-disable-next-line no-console
       console.error('connectWith error', err)
@@ -604,27 +627,20 @@ const LoginModal: React.FC<LoginModalProps> = ({ open, onClose, onAuthenticated 
                               // 1. Close our custom modal so it doesn't overlap
                               try { if (dialogRef.current?.open) dialogRef.current.close() } catch { }
 
-                              // 2. Force connect with Zerion specifically
-                              const result = await connectWith('zerion')
-
-                              // 3. After connection, trigger login to ensure signature request.
-                              // IMPORTANT: Even if connectWith FAILS (e.g. "Wallet already detected" or "existed_auth_flow"),
-                              // we MUST try to login() to prompt for the signature if the wallet is indeed ready.
-                              if (result?.ok) {
-                                // @ts-ignore
-                                login({ loginMethods: ['wallet'], walletList: ['zerion'] })
-                              } else {
-                                // If connection 'failed', it might just mean we are already linked.
-                                // Try logging in anyway.
-                                console.warn('Connection result not OK, attempting login anyway (fallback)...')
-                                // @ts-ignore
-                                login({ loginMethods: ['wallet'], walletList: ['zerion'] })
-                              }
+                              // 2. Trigger generic wallet login so users can select any wallet.
+                              // @ts-ignore
+                              login({
+                                loginMethods: ['wallet'],
+                                walletList: [...ALL_REQUESTED_WALLETS],
+                              })
                             } catch (e) {
                               console.error('Overall connect flow error', e)
                               // Final fallback
                               // @ts-ignore
-                              login({ loginMethods: ['wallet'], walletList: ['zerion'] })
+                              login({
+                                loginMethods: ['wallet'],
+                                walletList: [...ALL_REQUESTED_WALLETS],
+                              })
                             }
                           })
                         }}
