@@ -17,7 +17,17 @@ const privyConfig = {
   appearance: {
     theme: 'dark',
     walletChainType: 'ethereum-only',
-    walletList: ['zerion'],
+    walletList: [
+      'detected_ethereum_wallets',
+      'wallet_connect',
+      'metamask',
+      'coinbase_wallet',
+      'rainbow',
+      'phantom',
+      'zerion',
+      'uniswap',
+      'okx_wallet',
+    ],
   },
   embeddedWallets: {
     createOnLogin: 'users-without-wallets',
