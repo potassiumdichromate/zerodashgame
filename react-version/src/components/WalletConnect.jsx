@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 
 /**
- * WalletConnect Component - PERMISSIVE VERSION
- * Now accepts connections even if wallet identifies as MetaMask
- * (Zerion sometimes sets isMetaMask=true for compatibility)
+ * WalletConnect Component
+ * Supports any injected EIP-1193 wallet.
  */
 export default function WalletConnect({
   onConnect,
@@ -11,13 +10,12 @@ export default function WalletConnect({
   error,
   onPrivyConnect,
 }) {
-  const ZERION_DOWNLOAD_URL = 'https://zerion.io/download';
+  const WALLET_HELP_URL = 'https://ethereum.org/en/wallets/find-wallet/';
 
   const [showDiagnostics, setShowDiagnostics] = useState(false);
   const [diagnosticResults, setDiagnosticResults] = useState(null);
 
-  // Only show "not installed" error now
-  const isZerionNotInstalled = error === 'ZERION_NOT_INSTALLED';
+  const isWalletNotInstalled = error === 'WALLET_NOT_INSTALLED';
 
   /**
    * Run diagnostic check
@@ -25,13 +23,9 @@ export default function WalletConnect({
   const runDiagnostics = () => {
     const results = {
       hasEthereum: typeof window.ethereum !== 'undefined',
-      isZerion: window.ethereum?.isZerion || false,
-      // isMetaMask: window.ethereum?.isMetaMask || false,
-      // isCoinbase: window.ethereum?.isCoinbaseWallet || false,
+      isMetaMask: window.ethereum?.isMetaMask || false,
       hasProviders: !!window.ethereum?.providers,
-      // providerCount: window.ethereum?.providers?.length || 0,
-      hasZerionWindow: !!window.zerion,
-      zerionInProviders: window.ethereum?.providers?.some(p => p.isZerion) || false,
+      providerCount: window.ethereum?.providers?.length || 0,
     };
 
     setDiagnosticResults(results);
@@ -63,22 +57,22 @@ export default function WalletConnect({
     if (!diagnosticResults) return null;
 
     // No wallet installed
-    if (!diagnosticResults.hasEthereum && !diagnosticResults.hasZerionWindow) {
+    if (!diagnosticResults.hasEthereum) {
       return {
         type: 'error',
         title: 'No Wallet Detected',
         message: 'No Ethereum wallet extension found.',
-        solution: 'Install Zerion wallet from the link below.',
+        solution: 'Install any EVM wallet extension from the link below.',
       };
     }
 
-    // Wallet detected (could be Zerion identifying as MetaMask)
+    // Wallet detected
     if (diagnosticResults.hasEthereum) {
       return {
         type: 'info',
         title: 'Wallet Detected',
         message: 'A wallet extension is installed and active.',
-        solution: 'Click "Connect Wallet" to proceed. If you have multiple wallets, make sure Zerion is your active wallet.',
+        solution: 'Click "Connect Wallet" to proceed. If you have multiple wallets, select the one you want to use.',
       };
     }
 
@@ -113,8 +107,8 @@ export default function WalletConnect({
         {/* Game Logo */}
         <div>
           {/* <img src="https://zerodashgame.com/logo.png" alt="Zero Dash Game Logo" className="w-24 h-24 mb-4" /> */}
-          {/* Zerion Not Installed Message */}
-          {isZerionNotInstalled && (
+          {/* Wallet Not Installed Message */}
+          {isWalletNotInstalled && (
             <div className="mb-8 p-6 bg-zerion-blue-dark/90 border-4 border-zerion-yellow rounded-lg animate-pulse-slow">
               <div className="mb-4">
                 <svg
@@ -128,16 +122,16 @@ export default function WalletConnect({
                   Wallet Required
                 </h3>
                 <p className="text-sm text-zerion-light mb-4">
-                  Please install Zerion wallet to play this game.
+                  Please install an EVM wallet to play this game.
                 </p>
               </div>
               <a
-                href={ZERION_DOWNLOAD_URL}
+                href={WALLET_HELP_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-block pixel-button-primary mb-2"
               >
-                Download Zerion
+                Find a Wallet
               </a>
               <p className="text-xs text-zerion-light/60 mt-2">
                 After installing, refresh this page (Ctrl+Shift+R)
@@ -172,7 +166,7 @@ export default function WalletConnect({
             )}
           </div>
           {/* General Error Message */}
-          {error && !isZerionNotInstalled && (
+          {error && !isWalletNotInstalled && (
             <div
               className="mt-6 p-5 bg-red-900/90 border-4 border-red-500 text-sm animate-shake rounded"
               style={{ textShadow: '1px 1px 0 rgba(0, 0, 0, 0.8)' }}
@@ -205,12 +199,6 @@ export default function WalletConnect({
                   <span>Ethereum Provider:</span>
                   <span className={diagnosticResults.hasEthereum ? 'text-green-400' : 'text-red-400'}>
                     {diagnosticResults.hasEthereum ? '✅ YES' : '❌ NO'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Zerion Flag:</span>
-                  <span className={diagnosticResults.isZerion ? 'text-green-400' : 'text-yellow-400'}>
-                    {diagnosticResults.isZerion ? '✅ YES' : '⚠️ Not set (OK)'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between">
@@ -257,12 +245,12 @@ export default function WalletConnect({
           {!error && !showDiagnostics && (
             <div className="mt-8">
               <a
-                href={ZERION_DOWNLOAD_URL}
+                href={WALLET_HELP_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-xs text-zerion-yellow hover:text-zerion-yellow-glow underline"
               >
-                Don't have Zerion? Download here
+                Need a wallet? Find one here
               </a>
             </div>
           )}

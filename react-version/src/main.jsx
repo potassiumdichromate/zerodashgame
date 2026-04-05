@@ -2,11 +2,11 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { PrivyProvider } from '@privy-io/react-auth'
+import { BlockchainToastProvider } from './context/BlockchainToastContext' // ADD THIS
 import { Buffer } from 'buffer'
 import App from './App.jsx'
 import './index.css'
 
-// Ensure Buffer is available globally for web3 libraries
 window.Buffer = Buffer
 
 const privyAppId = import.meta.env.VITE_PRIVY_APP_ID
@@ -17,7 +17,17 @@ const privyConfig = {
   appearance: {
     theme: 'dark',
     walletChainType: 'ethereum-only',
-    walletList: ['zerion'],
+    walletList: [
+      'detected_ethereum_wallets',
+      'wallet_connect',
+      'metamask',
+      'coinbase_wallet',
+      'rainbow',
+      'phantom',
+      'zerion',
+      'uniswap',
+      'okx_wallet',
+    ],
   },
   embeddedWallets: {
     createOnLogin: 'users-without-wallets',
@@ -43,12 +53,16 @@ ReactDOM.createRoot(document.getElementById('root')).render(
     {hasValidPrivyAppId ? (
       <PrivyProvider appId={privyAppId} config={privyConfig}>
         <BrowserRouter>
-          <App privyEnabled />
+          <BlockchainToastProvider> {/* ADD THIS WRAPPER */}
+            <App privyEnabled />
+          </BlockchainToastProvider>
         </BrowserRouter>
       </PrivyProvider>
     ) : (
       <BrowserRouter>
-        <App privyEnabled={false} />
+        <BlockchainToastProvider> {/* ADD THIS WRAPPER */}
+          <App privyEnabled={false} />
+        </BlockchainToastProvider>
       </BrowserRouter>
     )}
   </React.StrictMode>,
