@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 
-const BACKEND_URL = 'https://zerodashbackend.onrender.com';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://zerodashbackend.onrender.com';
 const REFRESH_INTERVAL = 240000; // 4 minutes (240 seconds)
 
 /**

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import NFTMintModal from './NFTMintModal';
 
-const BACKEND_URL = 'https://zerodashbackend.onrender.com';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://zerodashbackend.onrender.com';
 
 /**
  * NFTPassStatus Component - BACKEND INTEGRATED
