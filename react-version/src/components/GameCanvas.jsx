@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import CustomLoading from './CustomLoading';
 
-const BACKEND_URL = 'https://zerodashbackend.onrender.com';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://zerodashbackend.onrender.com';
 
 /**
  * GameCanvas Component - NFT-AWARE VERSION (PORTRAIT OPTIMIZED)

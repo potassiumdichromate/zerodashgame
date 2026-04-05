@@ -19,7 +19,7 @@ import BackgroundMusic from './components/BackgroundMusic';
 import desktopBg from './assets/bg.png';
 import mobileBg from './assets/dbg.png';
 
-const BACKEND_URL = 'https://zerodashbackend.onrender.com';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 function HomeBackground() {
   return (
@@ -62,6 +62,7 @@ function GameRootContent({ privyEnabled }) {
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showPrivyLogin, setShowPrivyLogin] = useState(false);
   const [privyWalletAddress, setPrivyWalletAddress] = useState(null);
+  const [isJwtBootstrapping, setIsJwtBootstrapping] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const [playerStats, setPlayerStats] = useState({
@@ -157,6 +158,69 @@ function GameRootContent({ privyEnabled }) {
     }
   }, [currentScreen]);
 
+  /**
+   * Auto-enter menu when JWT + source=browser is provided in the URL
+   */
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const jwt = params.get('jwt');
+    const source = params.get('source');
+
+    if (!jwt || source !== 'browser') {
+      return;
+    }
+
+    localStorage.setItem('source', 'browser');
+
+    let cancelled = false;
+
+    const bootstrapFromJwt = async () => {
+      setIsJwtBootstrapping(true);
+      try {
+        const response = await fetch(`${BACKEND_URL}/player/profile`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ jwt, source }),
+        });
+
+        if (!response.ok) {
+          throw new Error('JWT validation failed');
+        }
+
+        const data = await response.json();
+        const wallet = data?.walletAddress;
+
+        if (!wallet) {
+          throw new Error('Missing wallet in profile response');
+        }
+
+        localStorage.setItem('walletAddress', wallet);
+
+        if (!cancelled) {
+          setPrivyWalletAddress(wallet);
+          setCurrentScreen('menu');
+        }
+      } catch (err) {
+        console.warn('JWT bootstrap failed:', err);
+      } finally {
+        if (!cancelled) {
+          setIsJwtBootstrapping(false);
+        }
+      }
+    };
+
+    bootstrapFromJwt();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /**
+   * Handle logout
+   */
   const handleLogout = async () => {
     disconnectWallet();
     localStorage.removeItem('walletAddress');
@@ -169,6 +233,9 @@ function GameRootContent({ privyEnabled }) {
     setShowLeaderboard(false);
   };
 
+  /**
+   * Handle wallet connection
+   */
   const handleConnect = async () => {
     const address = await connectWallet();
     if (address) {
@@ -243,7 +310,18 @@ function GameRootContent({ privyEnabled }) {
         </div>
       )}
 
-      {currentScreen === 'splash' && (
+      {currentScreen === 'splash' && isJwtBootstrapping && (
+        <div className="fixed inset-0 flex items-center justify-center p-5">
+          <div className="text-center fade-in">
+            <div className="w-10 h-10 mx-auto mb-4 border-4 border-zerion-yellow border-t-transparent rounded-full animate-spin" />
+            <p className="text-xs font-pixel text-zerion-blue-light">
+              Signing you in...
+            </p>
+          </div>
+        </div>
+      )}
+
+      {currentScreen === 'splash' && !isJwtBootstrapping && (
         <WalletConnect
           onConnect={handleConnect}
           isConnecting={isConnecting}
@@ -378,3 +456,4 @@ function App({ privyEnabled = true }) {
 }
 
 export default App;
+

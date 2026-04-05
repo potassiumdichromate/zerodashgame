@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const BACKEND_URL = 'https://zerodashbackend.onrender.com';
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://zerodashbackend.onrender.com';
 
 /**
  * DailyMissions Component - BACKEND INTEGRATED
