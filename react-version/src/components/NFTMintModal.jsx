@@ -7,7 +7,9 @@ import nftPassVideo from '../assets/nftpass.mp4';
 // CONTRACT CONFIGURATION
 // ============================================
 
-const NFT_CONTRACT_ADDRESS = " 0xbfe7aAfEB3145962943412413d69582630C5830D";
+const NFT_CONTRACT_ADDRESS =
+  String(import.meta.env.VITE_NFT_CONTRACT_ADDRESS || '').trim().replace(/^['"]+|['"]+$/g, '') ||
+  '0xbfe7aAfEB3145962943412413d69582630C5830D';
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "https://zerodashbackend.onrender.com";
 
 // Minimal ABI for minting (not used in gasless version, but kept for reference)

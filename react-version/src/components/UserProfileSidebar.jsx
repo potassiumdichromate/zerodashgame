@@ -1,6 +1,9 @@
 import React, { useEffect, useState } from 'react';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://zerodashbackend.onrender.com';
+const DEFAULT_EXPLORER = (
+  import.meta.env.VITE_ALLOWED_EXPLORER_URL || 'https://chainscan.0g.ai'
+).replace(/\/+$/, '');
 const REFRESH_INTERVAL = 240000; // 4 minutes (240 seconds)
 
 /**
@@ -49,7 +52,16 @@ export default function UserProfileSidebar({ isVisible, walletAddress }) {
         bestScore: data.highScore || 0,
         totalCoins: data.coins || 0,
         walletAddress: data.walletAddress,
-        
+        zerogBacked: typeof data?.zerogTrust?.saveBackedBy0g === 'boolean'
+          ? data.zerogTrust.saveBackedBy0g
+          : false,
+        chainTx:
+          typeof data?.blockchain?.lastTxHash === 'string'
+            ? data.blockchain.lastTxHash
+            : typeof data?.blockchain?.txHash === 'string'
+              ? data.blockchain.txHash
+              : null,
+
         // Character data
         unlockedCharacters: data.characters?.unlocked?.length || 0,
         currentCharacter: data.characters?.unlocked?.[data.characters?.currentIndex] || 'HERO1',
@@ -266,6 +278,38 @@ export default function UserProfileSidebar({ isVisible, walletAddress }) {
                   <p className="text-lg font-pixel text-white font-bold text-center">
                     {getRewardTimeRemaining()}
                   </p>
+                </div>
+              )}
+
+              {userStats.zerogBacked && (
+                <div className="flex items-center gap-2 rounded-lg border border-emerald-500/60 bg-emerald-950/40 px-3 py-2">
+                  <span className="text-lg" aria-hidden>
+                    ⚡
+                  </span>
+                  <div>
+                    <p className="text-[10px] font-pixel uppercase text-emerald-300/90 tracking-wide">
+                      0g data availability
+                    </p>
+                    <p className="text-xs font-pixel text-white/90">
+                      Your latest milestone snapshot reached the 0G DA gateway — same stack as Zero Pool & Highway Hustle.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {userStats.chainTx && (
+                <div className="rounded-lg border border-blue-500/50 bg-blue-950/35 px-3 py-2">
+                  <p className="text-[10px] font-pixel uppercase text-blue-300/90 tracking-wide mb-1">
+                    0g EVM anchored session
+                  </p>
+                  <a
+                    href={`${DEFAULT_EXPLORER}/tx/${userStats.chainTx}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[11px] font-mono text-zerion-yellow break-all hover:underline"
+                  >
+                    {userStats.chainTx.slice(0, 10)}…{userStats.chainTx.slice(-8)}
+                  </a>
                 </div>
               )}
 

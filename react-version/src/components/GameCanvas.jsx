@@ -3,6 +3,66 @@ import CustomLoading from './CustomLoading';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://zerodashbackend.onrender.com';
 
+function installZeroDashUnityScoreBridge() {
+  const report = async (raw) => {
+    const wallet =
+      (typeof raw === 'object' && raw !== null && typeof raw.wallet === 'string'
+        ? raw.wallet
+        : null) || localStorage.getItem('walletAddress');
+    if (!wallet || !/^0x[a-fA-F0-9]{40}$/.test(wallet)) {
+      console.warn('[ZeroDash] game-sync skipped — no wallet');
+      return { ok: false, reason: 'no_wallet' };
+    }
+    let data = raw;
+    if (typeof raw === 'string') {
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        return { ok: false, reason: 'invalid_json' };
+      }
+    }
+    const highScore = data?.highScore ?? data?.score ?? data?.bestScore;
+    const coins = data?.coins ?? data?.coin;
+    try {
+      const res = await fetch(`${BACKEND_URL}/player/game-sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${wallet}`,
+        },
+        body: JSON.stringify({
+          highScore,
+          coins,
+          client: 'unity-webgl',
+          ts: Date.now(),
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        console.warn('[ZeroDash] game-sync failed', res.status, body);
+        return { ok: false, status: res.status, body };
+      }
+      console.log('[ZeroDash] game-sync ok — 0g DA pipeline + anti-cheat processed');
+      return { ok: true, body };
+    } catch (e) {
+      console.warn('[ZeroDash] game-sync error', e.message);
+      return { ok: false, reason: e.message };
+    }
+  };
+
+  window.zeroDashBridge = {
+    version: 2,
+    /** Call from Unity .jslib: highScore/coins/Bearer wallet from localStorage */
+    reportGameEnd: (payload) => report(payload),
+    /** Compatibility alias */
+    syncRun: (payload) => report(payload),
+  };
+
+  console.log(
+    '[ZeroDash] Bridge ready — Unity can call zeroDashBridge.reportGameEnd(JSON.stringify({ highScore, coins }))'
+  );
+}
+
 /**
  * GameCanvas Component - NFT-AWARE VERSION (PORTRAIT OPTIMIZED)
  * Manages Unity WebGL instance loading and rendering
@@ -252,6 +312,8 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
           unityInstanceRef.current = unityInstance;
           setIsLoading(false);
 
+          installZeroDashUnityScoreBridge();
+
           // Set canvas dimensions based on device
           const canvas = canvasRef.current;
           if (canvas) {
@@ -343,6 +405,11 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
    */
   useEffect(() => {
     return () => {
+      try {
+        delete window.zeroDashBridge;
+      } catch (_) {
+        /* noop */
+      }
       if (unityInstanceRef.current) {
         try {
           unityInstanceRef.current.Quit();

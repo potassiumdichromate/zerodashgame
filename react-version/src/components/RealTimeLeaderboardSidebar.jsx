@@ -42,6 +42,10 @@ export default function RealTimeLeaderboardSidebar({ isVisible, currentUserAddre
         fullAddress: player.walletAddress,
         score: player.highScore,
         isOnline: true, // You can add online status from backend later
+        saveBackedBy0g:
+          typeof player?.trust?.saveBackedBy0g === 'boolean'
+            ? player.trust.saveBackedBy0g
+            : false,
       }));
 
       setLeaderboard(formattedData);
@@ -189,7 +193,15 @@ export default function RealTimeLeaderboardSidebar({ isVisible, currentUserAddre
                       </div>
 
                       {/* Score */}
-                      <div className="text-right">
+                      <div className="text-right flex flex-col items-end gap-0.5">
+                        {player.saveBackedBy0g && (
+                          <span
+                            className="text-[9px] font-pixel uppercase px-1 py-px rounded bg-emerald-600/40 text-emerald-200 border border-emerald-500/50"
+                            title="0G DA snapshot"
+                          >
+                            0g
+                          </span>
+                        )}
                         <p className="text-xs font-pixel text-zerion-yellow font-bold">
                           {player.score.toLocaleString()}
                         </p>

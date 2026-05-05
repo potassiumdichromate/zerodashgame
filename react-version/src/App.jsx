@@ -19,7 +19,8 @@ import BackgroundMusic from './components/BackgroundMusic';
 import desktopBg from './assets/bg.png';
 import mobileBg from './assets/dbg.png';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+const BACKEND_URL =
+  import.meta.env.VITE_BACKEND_URL || 'https://zerodashbackend.onrender.com';
 
 function HomeBackground() {
   return (
@@ -104,13 +105,18 @@ function GameRootContent({ privyEnabled }) {
         rank: 0,
       });
 
-      // Show toast if blockchain session was recorded
-      if (data.blockchain?.txHash) {
+      // Show toast if blockchain session was recorded (legacy + zerodash-backend shape)
+      const chainTx =
+        data.blockchain?.txHash ||
+        data.blockchain?.lastTxHash ||
+        data.blockchain?.transactionHash ||
+        null;
+      if (chainTx) {
         showToast({
-          title: '🎮 Session Recorded',
-          description: 'Your game session was tracked on blockchain',
-          txHash: data.blockchain.txHash,
-          duration: 5000
+          title: '🎮 0G EVM Anchored Run',
+          description: 'Session / score synced on-chain (when relay is configured)',
+          txHash: chainTx,
+          duration: 5500,
         });
       }
     } catch (err) {
