@@ -24,7 +24,7 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 // 0G ZeroDash decentralized backend
 const ZG_BACKEND = 'https://zerog-zerodash.onrender.com';
 // Unity WebGL build served from Cloudflare R2
-const GAME_BUILD_URL = (import.meta.env.VITE_R2_BUILD_URL || 'https://pub-c51325b05b6848599be1cf2978bc4c0e.r2.dev/latest') + '/index.html';
+const GAME_BUILD_URL = (import.meta.env.VITE_R2_BUILD_URL || 'https://pub-c51325b05b6848599be1cf2978bc4c0e.r2.dev/v12') + '/index.html';
 
 function HomeBackground() {
   return (
