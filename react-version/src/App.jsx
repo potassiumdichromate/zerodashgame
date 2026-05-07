@@ -8,13 +8,9 @@ import Leaderboard from './components/Leaderboard';
 import GameCanvas from './components/GameCanvas';
 import RealTimeLeaderboardSidebar from './components/RealTimeLeaderboardSidebar';
 import UserProfileSidebar from './components/UserProfileSidebar';
-import CharacterMarketplace from './components/CharacterMarketplace';
-import DailyMissions from './components/DailyMissions';
-import NFTPassStatus from './components/NFTPassStatus';
 import Particles from './components/Particles';
 import Login from './components/Login';
 import LoginModal from './components/LoginModal';
-import AIBotMike from './components/AIBotMike';
 import BackgroundMusic from './components/BackgroundMusic';
 import desktopBg from './assets/bg.png';
 import mobileBg from './assets/dbg.png';
@@ -45,10 +41,137 @@ function HomeBackground() {
   );
 }
 
+// Trust score label → display config
+const TRUST_CONFIG = {
+  PLATINUM:   { color: '#22d3ee', bg: 'rgba(34,211,238,0.12)', border: '#22d3ee', icon: '💎' },
+  GOLD:       { color: '#ffd700', bg: 'rgba(255,215,0,0.12)',  border: '#ffd700', icon: '🥇' },
+  SILVER:     { color: '#d1d5db', bg: 'rgba(209,213,219,0.12)', border: '#9ca3af', icon: '🥈' },
+  BRONZE:     { color: '#f97316', bg: 'rgba(249,115,22,0.12)', border: '#f97316', icon: '🥉' },
+  UNVERIFIED: { color: '#6b7280', bg: 'rgba(107,114,128,0.12)', border: '#4b5563', icon: '⬜' },
+};
+
+const ACTIVITY_LABELS = {
+  SAVE_STORED:        { label: 'Save Stored',         color: '#3b82f6' },
+  SAVE_ANCHORED:      { label: 'Save Anchored',        color: '#8b5cf6' },
+  DA_FINALIZED:       { label: 'DA Finalized',         color: '#10b981' },
+  DA_FAILED:          { label: 'DA Failed',            color: '#ef4444' },
+  COMPUTE_VALIDATED:  { label: 'Compute Verified',     color: '#22d3ee' },
+  COMPUTE_REJECTED:   { label: 'Compute Rejected',     color: '#f59e0b' },
+};
+
+function ServicePill({ label, status }) {
+  const ok = status === 'ok' || status === 'healthy' || status === 'active' || status === 'connected';
+  const color = ok ? '#10b981' : '#f59e0b';
+  return (
+    <div
+      className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-pixel"
+      style={{ background: `${color}18`, border: `1px solid ${color}`, color }}
+    >
+      <span style={{ width: 6, height: 6, borderRadius: '50%', background: color, display: 'inline-block', flexShrink: 0 }} />
+      {label}
+    </div>
+  );
+}
+
+function ZGNetworkCard({ network }) {
+  if (!network) {
+    return (
+      <div className="w-full rounded-xl p-3" style={{ background: 'rgba(10,22,40,0.7)', border: '2px solid #1e3a5f' }}>
+        <p className="text-xs font-pixel text-gray-500 text-center">Loading 0G network...</p>
+      </div>
+    );
+  }
+  const s = network.services || {};
+  const overallOk = network.overall === 'ok' || network.overall === 'healthy';
+  return (
+    <div className="w-full rounded-xl p-3" style={{ background: 'rgba(10,22,40,0.7)', border: `2px solid ${overallOk ? '#10b981' : '#f59e0b'}` }}>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs font-pixel font-bold text-white">0G NETWORK</span>
+        <span className="text-xs font-pixel" style={{ color: overallOk ? '#10b981' : '#f59e0b' }}>
+          {overallOk ? '● LIVE' : '● DEGRADED'}
+        </span>
+      </div>
+      <div className="flex flex-wrap gap-1">
+        {s.storage  && <ServicePill label="Storage"  status={s.storage.status} />}
+        {s.chain    && <ServicePill label="Chain"    status={s.chain.status}   />}
+        {s.da       && <ServicePill label="DA"       status={s.da.status}      />}
+        {s.compute  && <ServicePill label="Compute"  status={s.compute.status} />}
+      </div>
+      {s.chain?.blockNumber && (
+        <p className="text-xs font-pixel text-gray-500 mt-1">Block #{s.chain.blockNumber.toLocaleString()}</p>
+      )}
+    </div>
+  );
+}
+
+function ZGPlayerCard({ dashboard }) {
+  if (!dashboard) return null;
+
+  const trust = dashboard.trustScore || {};
+  const cfg = TRUST_CONFIG[trust.label] || TRUST_CONFIG.UNVERIFIED;
+  const latestSave = dashboard.latestSave;
+  const activity = (dashboard.recentActivity || []).slice(0, 4);
+
+  return (
+    <div className="w-full rounded-xl p-3 flex flex-col gap-3" style={{ background: 'rgba(10,22,40,0.7)', border: '2px solid #1e3a5f' }}>
+      {/* Trust Score */}
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-pixel font-bold text-white">TRUST SCORE</span>
+        <div
+          className="flex items-center gap-1 px-2 py-1 rounded-full text-xs font-pixel font-bold"
+          style={{ background: cfg.bg, border: `1.5px solid ${cfg.border}`, color: cfg.color }}
+        >
+          {cfg.icon} {trust.label || 'UNVERIFIED'} · {trust.score ?? 0}/100
+        </div>
+      </div>
+
+      {/* Latest Save */}
+      {latestSave?.rootHash && (
+        <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: 8, padding: '8px 10px' }}>
+          <p className="text-xs font-pixel text-gray-400 mb-1">LATEST SAVE</p>
+          <p className="text-xs font-mono text-gray-300 break-all leading-tight">
+            {latestSave.rootHash.slice(0, 18)}…{latestSave.rootHash.slice(-8)}
+          </p>
+          <div className="flex items-center gap-2 mt-1">
+            {latestSave.pipeline?.finalized?.done && (
+              <span className="text-xs font-pixel" style={{ color: '#10b981' }}>✓ Finalized</span>
+            )}
+            {latestSave.pipeline?.validated?.verdict === 'VALID' && (
+              <span className="text-xs font-pixel" style={{ color: '#22d3ee' }}>✓ Verified</span>
+            )}
+            {latestSave.pipeline?.validated?.verdict === 'INVALID' && (
+              <span className="text-xs font-pixel" style={{ color: '#ef4444' }}>✗ Invalid</span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Activity Feed */}
+      {activity.length > 0 && (
+        <div>
+          <p className="text-xs font-pixel text-gray-400 mb-1">RECENT ACTIVITY</p>
+          <div className="flex flex-col gap-1">
+            {activity.map((ev, i) => {
+              const cfg = ACTIVITY_LABELS[ev.type] || { label: ev.type, color: '#6b7280' };
+              const ts = ev.timestamp ? new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
+              return (
+                <div key={i} className="flex items-center justify-between">
+                  <span className="text-xs font-pixel" style={{ color: cfg.color }}>· {cfg.label}</span>
+                  {ts && <span className="text-xs font-pixel text-gray-600">{ts}</span>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // WRAP GameRoot CONTENT IN A NEW COMPONENT
 function GameRootContent({ privyEnabled }) {
-  const { showToast } = useBlockchainToast(); // NOW THIS WILL WORK!
-  
+  const { showToast } = useBlockchainToast();
+
   const {
     walletAddress,
     truncatedAddress,
@@ -71,61 +194,51 @@ function GameRootContent({ privyEnabled }) {
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [startGameError, setStartGameError] = useState(null);
 
-  const [playerStats, setPlayerStats] = useState({
-    bestScore: 0,
-    totalCoins: 0,
-    rank: 0,
-  });
+  const [playerStats, setPlayerStats] = useState({ bestScore: 0, totalCoins: 0, rank: 0 });
   const [statsLoading, setStatsLoading] = useState(false);
+
+  // 0G data
+  const [zgNetwork, setZgNetwork] = useState(null);
+  const [zgDashboard, setZgDashboard] = useState(null);
+
+  const fetch0GData = async (addr) => {
+    // Always fetch public network status
+    try {
+      const res = await fetch(`${ZG_BACKEND}/0g/network`);
+      if (res.ok) setZgNetwork(await res.json());
+    } catch { /* non-fatal */ }
+
+    // Fetch dashboard if we have a JWT
+    try {
+      const jwt = localStorage.getItem('zgJwt');
+      if (!jwt || !addr) return;
+      const res = await fetch(`${ZG_BACKEND}/0g/dashboard`, {
+        headers: { Authorization: `Bearer ${jwt}` },
+      });
+      if (res.ok) setZgDashboard(await res.json());
+    } catch { /* non-fatal */ }
+  };
 
   const fetchPlayerStats = async () => {
     setStatsLoading(true);
-
     try {
       const storedWalletAddress = localStorage.getItem('walletAddress');
-      
-      if (!storedWalletAddress) {
-        console.log('No wallet address found in storage');
-        setStatsLoading(false);
-        return;
-      }
+      if (!storedWalletAddress) { setStatsLoading(false); return; }
 
       const response = await fetch(`${BACKEND_URL}/player/profile`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${storedWalletAddress}`,
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${storedWalletAddress}` },
       });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch player stats');
-      }
-
+      if (!response.ok) throw new Error('Failed to fetch player stats');
       const data = await response.json();
-      
-      setPlayerStats({
-        bestScore: data.highScore || 0,
-        totalCoins: data.coins || 0,
-        rank: 0,
-      });
+      setPlayerStats({ bestScore: data.highScore || 0, totalCoins: data.coins || 0, rank: 0 });
 
-      // Show toast if blockchain session was recorded
       if (data.blockchain?.txHash) {
-        showToast({
-          title: '🎮 Session Recorded',
-          description: 'Your game session was tracked on blockchain',
-          txHash: data.blockchain.txHash,
-          duration: 5000
-        });
+        showToast({ title: '🎮 Session Recorded', description: 'Your game session was tracked on blockchain', txHash: data.blockchain.txHash, duration: 5000 });
       }
     } catch (err) {
       console.error('Error fetching player stats:', err);
-      setPlayerStats({
-        bestScore: 0,
-        totalCoins: 0,
-        rank: 0,
-      });
+      setPlayerStats({ bestScore: 0, totalCoins: 0, rank: 0 });
     } finally {
       setStatsLoading(false);
     }
@@ -135,22 +248,14 @@ function GameRootContent({ privyEnabled }) {
     try {
       const storedWalletAddress = localStorage.getItem('walletAddress');
       if (!storedWalletAddress) return;
-
       const response = await fetch(`${BACKEND_URL}/player/leaderboard?limit=1000`);
-      
       if (!response.ok) return;
-
       const leaderboard = await response.json();
-      
       const playerIndex = leaderboard.findIndex(
         player => player.walletAddress.toLowerCase() === storedWalletAddress.toLowerCase()
       );
-      
       if (playerIndex !== -1) {
-        setPlayerStats(prev => ({
-          ...prev,
-          rank: playerIndex + 1,
-        }));
+        setPlayerStats(prev => ({ ...prev, rank: playerIndex + 1 }));
       }
     } catch (err) {
       console.error('Error fetching player rank:', err);
@@ -159,8 +264,10 @@ function GameRootContent({ privyEnabled }) {
 
   useEffect(() => {
     if (currentScreen === 'menu') {
+      const addr = walletAddress || privyWalletAddress;
       fetchPlayerStats();
       fetchPlayerRank();
+      fetch0GData(addr);
     }
   }, [currentScreen]);
 
@@ -416,19 +523,19 @@ function GameRootContent({ privyEnabled }) {
       )}
 
       {currentScreen === 'menu' && !showLeaderboard && (
-        <>
-          <NFTPassStatus walletAddress={walletAddress || privyWalletAddress} />
-          <CharacterMarketplace />
-          
-          <div className="fixed inset-0 flex items-center justify-center p-5 z-[100]">
-            <div className="max-w-md w-full flex flex-col items-center gap-6 fade-in">
+        <div className="fixed inset-0 overflow-y-auto z-[100]">
+          <div className="min-h-full flex items-center justify-center py-6 px-4">
+            <div className="max-w-sm w-full flex flex-col items-center gap-4 fade-in">
+
+              {/* Title */}
               <h2
                 className="text-4xl md:text-5xl font-pixel text-zerion-yellow"
-                style={{ textShadow: '4px 4px 0 rgba(0, 0, 0, 0.8), 0 0 30px rgba(255, 215, 0, 0.6)' }}
+                style={{ textShadow: '4px 4px 0 rgba(0,0,0,0.8), 0 0 30px rgba(255,215,0,0.6)' }}
               >
                 READY?
               </h2>
 
+              {/* Primary actions */}
               <button
                 onClick={handleStartGame}
                 disabled={isStartingGame}
@@ -439,7 +546,7 @@ function GameRootContent({ privyEnabled }) {
               </button>
 
               {startGameError && (
-                <p className="text-xs font-pixel text-red-400 text-center mt-1 px-2">
+                <p className="text-xs font-pixel text-red-400 text-center px-2">
                   ⚠️ {startGameError}
                 </p>
               )}
@@ -448,54 +555,41 @@ function GameRootContent({ privyEnabled }) {
                 🏆 LEADERBOARD
               </button>
 
-              <div className="mt-4 grid grid-cols-3 gap-3 w-full">
-                <div className="bg-zerion-blue-dark/60 border-2 border-zerion-blue rounded-lg p-3 text-center">
-                  <p className="text-xs font-pixel text-zerion-blue-light mb-1">BEST</p>
-                  {statsLoading ? (
-                    <div className="w-4 h-4 mx-auto border-2 border-zerion-yellow border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <p className="text-lg font-pixel text-zerion-yellow font-bold">
-                      {playerStats.bestScore > 0 ? playerStats.bestScore.toLocaleString() : '0'}
-                    </p>
-                  )}
-                </div>
-
-                <div className="bg-zerion-blue-dark/60 border-2 border-zerion-blue rounded-lg p-3 text-center">
-                  <p className="text-xs font-pixel text-zerion-blue-light mb-1">COINS</p>
-                  {statsLoading ? (
-                    <div className="w-4 h-4 mx-auto border-2 border-zerion-yellow border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <p className="text-lg font-pixel text-zerion-yellow font-bold">
-                      {playerStats.totalCoins > 0 ? playerStats.totalCoins.toLocaleString() : '0'}
-                    </p>
-                  )}
-                </div>
-
-                <div className="bg-zerion-blue-dark/60 border-2 border-zerion-blue rounded-lg p-3 text-center">
-                  <p className="text-xs font-pixel text-zerion-blue-light mb-1">RANK</p>
-                  {statsLoading ? (
-                    <div className="w-4 h-4 mx-auto border-2 border-zerion-yellow border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <p className="text-lg font-pixel text-zerion-yellow font-bold">
-                      {playerStats.rank > 0 ? `#${playerStats.rank}` : '-'}
-                    </p>
-                  )}
-                </div>
+              {/* Player Stats */}
+              <div className="grid grid-cols-3 gap-3 w-full">
+                {[
+                  { label: 'BEST',  value: playerStats.bestScore  > 0 ? playerStats.bestScore.toLocaleString()  : '0' },
+                  { label: 'COINS', value: playerStats.totalCoins > 0 ? playerStats.totalCoins.toLocaleString() : '0' },
+                  { label: 'RANK',  value: playerStats.rank > 0 ? `#${playerStats.rank}` : '-' },
+                ].map(({ label, value }) => (
+                  <div key={label} className="bg-zerion-blue-dark/60 border-2 border-zerion-blue rounded-lg p-3 text-center">
+                    <p className="text-xs font-pixel text-zerion-blue-light mb-1">{label}</p>
+                    {statsLoading
+                      ? <div className="w-4 h-4 mx-auto border-2 border-zerion-yellow border-t-transparent rounded-full animate-spin" />
+                      : <p className="text-lg font-pixel text-zerion-yellow font-bold">{value}</p>
+                    }
+                  </div>
+                ))}
               </div>
 
               {!statsLoading && (
                 <button
-                  onClick={() => { fetchPlayerStats(); fetchPlayerRank(); }}
+                  onClick={() => { fetchPlayerStats(); fetchPlayerRank(); fetch0GData(walletAddress || privyWalletAddress); }}
                   className="text-xs font-pixel text-zerion-blue-light hover:text-zerion-yellow transition-colors"
                 >
-                  🔄 Refresh Stats
+                  🔄 Refresh
                 </button>
               )}
+
+              {/* 0G Network status */}
+              <ZGNetworkCard network={zgNetwork} />
+
+              {/* 0G Player panel — only shown when dashboard data available */}
+              {zgDashboard && <ZGPlayerCard dashboard={zgDashboard} />}
+
             </div>
           </div>
-
-          <DailyMissions />
-        </>
+        </div>
       )}
 
       {currentScreen === 'game' && (
@@ -508,14 +602,12 @@ function GameRootContent({ privyEnabled }) {
 
       <Leaderboard isOpen={showLeaderboard} onClose={handleCloseLeaderboard} />
 
-      {(currentScreen === 'menu' || currentScreen === 'game') && <AIBotMike />}
-
       {import.meta.env.DEV && (
         <div className="fixed bottom-2 left-2 text-xs opacity-50 font-mono bg-black/50 p-2 rounded z-[9999]">
           <div>Screen: {currentScreen}</div>
-          <div>Wallet: {isConnected ? '✅' : '❌'}</div>
-          <div>Address: {truncatedAddress || 'Not connected'}</div>
+          <div>Wallet: {isConnected ? '✅' : '❌'} {truncatedAddress || 'Not connected'}</div>
           <div>Stats: Best={playerStats.bestScore} Coins={playerStats.totalCoins} Rank={playerStats.rank || '-'}</div>
+          <div>0G Net: {zgNetwork ? zgNetwork.overall : 'none'} | Dashboard: {zgDashboard ? '✅' : 'none'}</div>
         </div>
       )}
 
