@@ -41,121 +41,99 @@ function HomeBackground() {
   );
 }
 
-// Trust score label → display config
 const TRUST_CONFIG = {
-  PLATINUM:   { color: '#22d3ee', bg: 'rgba(34,211,238,0.12)', border: '#22d3ee', icon: '💎' },
-  GOLD:       { color: '#ffd700', bg: 'rgba(255,215,0,0.12)',  border: '#ffd700', icon: '🥇' },
-  SILVER:     { color: '#d1d5db', bg: 'rgba(209,213,219,0.12)', border: '#9ca3af', icon: '🥈' },
-  BRONZE:     { color: '#f97316', bg: 'rgba(249,115,22,0.12)', border: '#f97316', icon: '🥉' },
-  UNVERIFIED: { color: '#6b7280', bg: 'rgba(107,114,128,0.12)', border: '#4b5563', icon: '⬜' },
+  PLATINUM:   { color: '#22d3ee', bg: 'rgba(34,211,238,0.15)',  border: '#22d3ee', glow: '0 0 20px rgba(34,211,238,0.35)',  icon: '💎', num: '#22d3ee' },
+  GOLD:       { color: '#ffd700', bg: 'rgba(255,215,0,0.12)',   border: '#ffd700', glow: '0 0 20px rgba(255,215,0,0.35)',   icon: '🥇', num: '#ffd700' },
+  SILVER:     { color: '#d1d5db', bg: 'rgba(209,213,219,0.10)', border: '#9ca3af', glow: '0 0 16px rgba(209,213,219,0.2)', icon: '🥈', num: '#d1d5db' },
+  BRONZE:     { color: '#f97316', bg: 'rgba(249,115,22,0.12)',  border: '#f97316', glow: '0 0 16px rgba(249,115,22,0.3)',  icon: '🥉', num: '#f97316' },
+  UNVERIFIED: { color: '#6b7280', bg: 'rgba(107,114,128,0.10)', border: '#4b5563', glow: 'none',                           icon: '⬜', num: '#6b7280' },
 };
 
 const ACTIVITY_META = {
-  SAVE_STORED:       { color: '#3b82f6', dot: '🗄' },
-  SAVE_ANCHORED:     { color: '#8b5cf6', dot: '⛓' },
-  DA_FINALIZED:      { color: '#10b981', dot: '✅' },
-  DA_FAILED:         { color: '#ef4444', dot: '❌' },
-  COMPUTE_VALIDATED: { color: '#22d3ee', dot: '🛡' },
-  COMPUTE_REJECTED:  { color: '#f59e0b', dot: '⚠' },
+  SAVE_STORED:       { color: '#3b82f6', label: 'Stored',    dot: '🗄' },
+  SAVE_ANCHORED:     { color: '#8b5cf6', label: 'Anchored',  dot: '⛓' },
+  DA_FINALIZED:      { color: '#10b981', label: 'Finalized', dot: '✅' },
+  DA_FAILED:         { color: '#ef4444', label: 'DA Failed', dot: '❌' },
+  COMPUTE_VALIDATED: { color: '#22d3ee', label: 'Verified',  dot: '🛡' },
+  COMPUTE_REJECTED:  { color: '#f59e0b', label: 'Flagged',   dot: '⚠' },
 };
 
-const SVC_COLOR = {
-  online:      '#10b981',
-  configured:  '#22d3ee',
-  connecting:  '#f59e0b',
-  unreachable: '#ef4444',
-  disabled:    '#6b7280',
-};
+const SVC_COLOR = { online: '#10b981', configured: '#22d3ee', connecting: '#f59e0b', unreachable: '#ef4444', disabled: '#6b7280' };
 
-function hash(h, len = 10) {
-  if (!h) return '—';
-  return `${h.slice(0, len)}…${h.slice(-6)}`;
-}
+function hx(h, a = 8, b = 6) { if (!h) return '—'; return `${h.slice(0, a)}…${h.slice(-b)}`; }
 
 function PipelineDot({ done, label, explorerUrl, pending }) {
-  const color = done ? '#10b981' : pending ? '#f59e0b' : '#374151';
-  const dot = (
-    <span
-      title={label}
-      style={{
-        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-        width: 10, height: 10, borderRadius: '50%', background: color,
-        boxShadow: done ? `0 0 6px ${color}` : 'none', flexShrink: 0,
-      }}
-    />
+  const color = done ? '#10b981' : pending ? '#f59e0b' : '#1f2937';
+  const el = (
+    <span title={label} style={{
+      display: 'inline-block', width: 11, height: 11, borderRadius: '50%',
+      background: color, border: `2px solid ${done ? color : '#374151'}`,
+      boxShadow: done ? `0 0 8px ${color}` : 'none', flexShrink: 0, cursor: explorerUrl && done ? 'pointer' : 'default',
+    }} />
   );
-  if (explorerUrl && done) {
-    return (
-      <a href={explorerUrl} target="_blank" rel="noopener noreferrer" title={`${label} — view on explorer`}>
-        {dot}
-      </a>
-    );
-  }
-  return dot;
+  return explorerUrl && done
+    ? <a href={explorerUrl} target="_blank" rel="noopener noreferrer">{el}</a>
+    : el;
 }
 
-function ZGNetworkCard({ network }) {
-  if (!network) {
-    return (
-      <div className="w-full rounded-xl p-3" style={{ background: 'rgba(10,22,40,0.7)', border: '2px solid #1e3a5f' }}>
-        <p className="text-xs font-pixel text-gray-500 text-center">Checking 0G network...</p>
-      </div>
-    );
-  }
-  const s = network.services || {};
-  const overallOk = network.overall === 'healthy' || network.overall === 'ok';
+/* ── LEFT PANEL — 0G Network ─────────────────────────────────────────── */
+function ZGNetworkPanel({ network }) {
+  const PANEL = { background: 'rgba(5,15,30,0.85)', border: '2px solid #0f2744', backdropFilter: 'blur(12px)' };
 
-  const services = [
+  if (!network) return (
+    <div className="rounded-2xl p-4" style={PANEL}>
+      <p className="text-xs font-pixel text-gray-600 text-center">Checking 0G network…</p>
+    </div>
+  );
+
+  const s = network.services || {};
+  const ok = network.overall === 'healthy' || network.overall === 'ok';
+  const svcs = [
     { key: 'storage', label: 'Storage',  svc: s.storage },
     { key: 'chain',   label: 'Chain',    svc: s.chain   },
-    { key: 'da',      label: 'DA',       svc: s.da      },
+    { key: 'da',      label: 'DA Layer', svc: s.da      },
     { key: 'compute', label: 'Compute',  svc: s.compute },
   ].filter(x => x.svc);
 
   return (
-    <div className="w-full rounded-xl p-3" style={{ background: 'rgba(10,22,40,0.7)', border: `2px solid ${overallOk ? '#10b981' : '#f59e0b'}` }}>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-pixel font-bold text-white">0G NETWORK</span>
-        <span className="text-xs font-pixel font-bold" style={{ color: overallOk ? '#10b981' : '#f59e0b' }}>
-          ● {overallOk ? 'LIVE' : 'ISSUES'}
-        </span>
+    <div className="rounded-2xl overflow-hidden" style={PANEL}>
+      {/* header */}
+      <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #0f2744', background: ok ? 'rgba(16,185,129,0.06)' : 'rgba(245,158,11,0.06)' }}>
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-pixel font-bold text-white">0G NETWORK</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: ok ? '#10b981' : '#f59e0b', boxShadow: `0 0 8px ${ok ? '#10b981' : '#f59e0b'}`, display: 'inline-block' }} />
+          <span className="font-pixel font-bold" style={{ fontSize: 10, color: ok ? '#10b981' : '#f59e0b' }}>{ok ? 'LIVE' : 'ISSUES'}</span>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-1.5">
-        {services.map(({ key, label, svc }) => {
-          const color = SVC_COLOR[svc.status] || '#6b7280';
-          const content = (
-            <div
-              key={key}
-              className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg"
-              style={{ background: `${color}12`, border: `1px solid ${color}40` }}
-            >
-              <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0, display: 'inline-block' }} />
-              <div className="min-w-0">
-                <p className="text-xs font-pixel font-bold truncate" style={{ color }}>{label}</p>
-                {svc.latencyMs != null && (
-                  <p className="text-xs font-pixel" style={{ color: '#6b7280', fontSize: 9 }}>{svc.latencyMs}ms</p>
-                )}
+      {/* service rows */}
+      <div className="px-3 py-3 flex flex-col gap-2">
+        {svcs.map(({ key, label, svc }) => {
+          const c = SVC_COLOR[svc.status] || '#6b7280';
+          const row = (
+            <div className="flex items-center justify-between px-2.5 py-2 rounded-xl" style={{ background: `${c}0d`, border: `1px solid ${c}30` }}>
+              <div className="flex items-center gap-2">
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: c, boxShadow: `0 0 6px ${c}`, display: 'inline-block' }} />
+                <span className="font-pixel font-bold" style={{ fontSize: 11, color: c }}>{label}</span>
               </div>
+              {svc.latencyMs != null && <span className="font-mono" style={{ fontSize: 10, color: '#4b5563' }}>{svc.latencyMs}ms</span>}
             </div>
           );
-          if (key === 'chain' && svc.explorerUrl) {
-            return (
-              <a key={key} href={svc.explorerUrl} target="_blank" rel="noopener noreferrer" className="no-underline">
-                {content}
-              </a>
-            );
-          }
-          return <div key={key}>{content}</div>;
+          return key === 'chain' && svc.explorerUrl
+            ? <a key={key} href={svc.explorerUrl} target="_blank" rel="noopener noreferrer" className="no-underline block">{row}</a>
+            : <div key={key}>{row}</div>;
         })}
       </div>
 
+      {/* block number */}
       {s.chain?.blockNumber && (
-        <div className="flex items-center justify-between mt-2 pt-2" style={{ borderTop: '1px solid #1e3a5f' }}>
-          <span className="text-xs font-pixel text-gray-500">Latest block</span>
+        <div className="flex items-center justify-between px-4 py-2" style={{ borderTop: '1px solid #0f2744' }}>
+          <span className="font-pixel text-gray-600" style={{ fontSize: 10 }}>BLOCK</span>
           {s.chain.explorerUrl
-            ? <a href={s.chain.explorerUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-mono" style={{ color: '#22d3ee' }}>#{s.chain.blockNumber.toLocaleString()} ↗</a>
-            : <span className="text-xs font-mono text-gray-400">#{s.chain.blockNumber.toLocaleString()}</span>
+            ? <a href={s.chain.explorerUrl} target="_blank" rel="noopener noreferrer" className="font-mono font-bold" style={{ fontSize: 11, color: '#22d3ee' }}>#{s.chain.blockNumber.toLocaleString()} ↗</a>
+            : <span className="font-mono font-bold text-gray-400" style={{ fontSize: 11 }}>#{s.chain.blockNumber.toLocaleString()}</span>
           }
         </div>
       )}
@@ -163,105 +141,104 @@ function ZGNetworkCard({ network }) {
   );
 }
 
-function ZGPlayerCard({ dashboard }) {
-  if (!dashboard) return null;
+/* ── RIGHT PANEL — Player 0G data ────────────────────────────────────── */
+function ZGPlayerPanel({ dashboard }) {
+  const PANEL = { background: 'rgba(5,15,30,0.85)', border: '2px solid #0f2744', backdropFilter: 'blur(12px)' };
+
+  if (!dashboard) return (
+    <div className="rounded-2xl p-4" style={PANEL}>
+      <p className="text-xs font-pixel text-gray-600 text-center">Loading your 0G data…</p>
+    </div>
+  );
 
   const trust = dashboard.trustScore || {};
-  const cfg = TRUST_CONFIG[trust.label] || TRUST_CONFIG.UNVERIFIED;
-  const bd = trust.breakdown || {};
-  const latestSave = dashboard.latestSave;
-  const summary = dashboard.summary || {};
-  const activity = (dashboard.recentActivity || []).slice(0, 5);
-  const pipe = latestSave?.pipeline || {};
+  const cfg   = TRUST_CONFIG[trust.label] || TRUST_CONFIG.UNVERIFIED;
+  const bd    = trust.breakdown || {};
+  const sum   = dashboard.summary || {};
+  const ls    = dashboard.latestSave;
+  const pipe  = ls?.pipeline || {};
+  const acts  = (dashboard.recentActivity || []).slice(0, 4);
 
   return (
-    <div className="w-full rounded-xl flex flex-col gap-0 overflow-hidden" style={{ background: 'rgba(10,22,40,0.7)', border: '2px solid #1e3a5f' }}>
+    <div className="rounded-2xl overflow-hidden flex flex-col" style={PANEL}>
 
-      {/* ── Trust Score header ── */}
-      <div className="px-3 py-3" style={{ borderBottom: '1px solid #1e3a5f' }}>
-        <div className="flex items-center justify-between mb-1">
+      {/* ── Trust Score ── */}
+      <div className="px-4 py-3" style={{ background: cfg.bg, borderBottom: '1px solid #0f2744', boxShadow: cfg.glow }}>
+        <div className="flex items-center justify-between mb-2">
           <span className="text-xs font-pixel font-bold text-white">TRUST SCORE</span>
-          <div
-            className="flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-pixel font-bold"
-            style={{ background: cfg.bg, border: `1.5px solid ${cfg.border}`, color: cfg.color }}
-          >
-            {cfg.icon} {trust.label || 'UNVERIFIED'} · {trust.score ?? 0}/100
-          </div>
+          <span className="font-pixel font-bold px-2 py-0.5 rounded-full" style={{ fontSize: 10, background: `${cfg.border}22`, border: `1px solid ${cfg.border}`, color: cfg.color }}>
+            {cfg.icon} {trust.label}
+          </span>
         </div>
-        {trust.description && (
-          <p className="text-xs font-pixel" style={{ color: '#6b7280', fontSize: 10 }}>{trust.description}</p>
-        )}
-
-        {/* Stats grid */}
-        <div className="grid grid-cols-4 gap-1 mt-2">
+        <div className="flex items-end gap-2 mb-2">
+          <span className="font-pixel font-bold" style={{ fontSize: 32, lineHeight: 1, color: cfg.num, textShadow: cfg.glow }}>{trust.score ?? 0}</span>
+          <span className="font-pixel text-gray-600 mb-1" style={{ fontSize: 11 }}>/100</span>
+        </div>
+        <div className="grid grid-cols-4 gap-1">
           {[
-            { label: 'SAVES',    value: bd.totalSaves ?? summary.totalSaves ?? 0 },
-            { label: 'ANCHORED', value: bd.anchoredSaves ?? summary.anchoredSaves ?? 0 },
-            { label: 'FINALIZED',value: bd.finalizedSaves ?? summary.finalizedSaves ?? 0 },
-            { label: 'VERIFIED', value: bd.computeValidated ?? 0 },
-          ].map(({ label, value }) => (
-            <div key={label} className="text-center rounded py-1" style={{ background: 'rgba(0,0,0,0.3)' }}>
-              <p className="text-xs font-pixel font-bold text-white">{value}</p>
-              <p className="font-pixel text-gray-500" style={{ fontSize: 8 }}>{label}</p>
+            { l: 'SAVES',     v: bd.totalSaves ?? sum.totalSaves ?? 0 },
+            { l: 'ANCHORED',  v: bd.anchoredSaves ?? sum.anchoredSaves ?? 0 },
+            { l: 'DA',        v: bd.finalizedSaves ?? sum.finalizedSaves ?? 0 },
+            { l: 'TEE',       v: bd.computeValidated ?? 0 },
+          ].map(({ l, v }) => (
+            <div key={l} className="text-center rounded-lg py-1.5" style={{ background: 'rgba(0,0,0,0.35)' }}>
+              <p className="font-pixel font-bold text-white" style={{ fontSize: 14 }}>{v}</p>
+              <p className="font-pixel text-gray-600" style={{ fontSize: 8 }}>{l}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* ── Latest Save ── */}
-      {latestSave && (
-        <div className="px-3 py-2.5" style={{ borderBottom: '1px solid #1e3a5f' }}>
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-pixel font-bold text-white">LATEST SAVE <span style={{ color: '#6b7280' }}>#{latestSave.saveIndex}</span></span>
-            <span className="font-pixel text-gray-500" style={{ fontSize: 10 }}>{latestSave.fileSize}</span>
+      {ls && (
+        <div className="px-4 py-3" style={{ borderBottom: '1px solid #0f2744' }}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-pixel font-bold text-white" style={{ fontSize: 11 }}>SAVE <span style={{ color: '#ffd700' }}>#{ls.saveIndex}</span></span>
+            <span className="font-pixel text-gray-500" style={{ fontSize: 10 }}>{ls.fileSize}</span>
           </div>
 
-          {/* Root hash */}
-          {latestSave.rootHash && (
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="font-pixel text-gray-500" style={{ fontSize: 10 }}>Root</span>
-              <span className="font-mono text-gray-300 truncate" style={{ fontSize: 11 }}>
-                {hash(latestSave.rootHash, 14)}
-              </span>
-            </div>
-          )}
+          <div className="flex flex-col gap-1.5">
+            {ls.rootHash && (
+              <div className="flex items-center gap-2 rounded-lg px-2 py-1" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid #1e3a5f' }}>
+                <span className="font-pixel text-gray-600 flex-shrink-0" style={{ fontSize: 9 }}>ROOT</span>
+                <span className="font-mono text-gray-300 truncate" style={{ fontSize: 10 }}>{hx(ls.rootHash, 16, 8)}</span>
+              </div>
+            )}
+            {pipe.stored?.txHash && (
+              <div className="flex items-center gap-2 rounded-lg px-2 py-1" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid #1e3a5f' }}>
+                <span className="font-pixel text-gray-600 flex-shrink-0" style={{ fontSize: 9 }}>TX</span>
+                {pipe.stored.explorerUrl
+                  ? <a href={pipe.stored.explorerUrl} target="_blank" rel="noopener noreferrer" className="font-mono truncate font-bold" style={{ fontSize: 10, color: '#22d3ee' }}>{hx(pipe.stored.txHash)} ↗</a>
+                  : <span className="font-mono text-gray-300 truncate" style={{ fontSize: 10 }}>{hx(pipe.stored.txHash)}</span>
+                }
+              </div>
+            )}
+            {pipe.anchored?.txHash && (
+              <div className="flex items-center gap-2 rounded-lg px-2 py-1" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid #1e3a5f' }}>
+                <span className="font-pixel text-gray-600 flex-shrink-0" style={{ fontSize: 9 }}>ANCHOR</span>
+                {pipe.anchored.explorerUrl
+                  ? <a href={pipe.anchored.explorerUrl} target="_blank" rel="noopener noreferrer" className="font-mono truncate font-bold" style={{ fontSize: 10, color: '#8b5cf6' }}>{hx(pipe.anchored.txHash)} ↗</a>
+                  : <span className="font-mono text-gray-300 truncate" style={{ fontSize: 10 }}>{hx(pipe.anchored.txHash)}</span>
+                }
+              </div>
+            )}
+          </div>
 
-          {/* Storage tx */}
-          {pipe.stored?.txHash && (
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="font-pixel text-gray-500" style={{ fontSize: 10 }}>Tx</span>
-              {pipe.stored.explorerUrl
-                ? <a href={pipe.stored.explorerUrl} target="_blank" rel="noopener noreferrer" className="font-mono truncate" style={{ fontSize: 11, color: '#22d3ee' }}>{hash(pipe.stored.txHash, 14)} ↗</a>
-                : <span className="font-mono text-gray-300 truncate" style={{ fontSize: 11 }}>{hash(pipe.stored.txHash, 14)}</span>
-              }
-            </div>
-          )}
-
-          {/* Anchor tx */}
-          {pipe.anchored?.txHash && (
-            <div className="flex items-center gap-2 mb-1.5">
-              <span className="font-pixel text-gray-500" style={{ fontSize: 10 }}>Anchor</span>
-              {pipe.anchored.explorerUrl
-                ? <a href={pipe.anchored.explorerUrl} target="_blank" rel="noopener noreferrer" className="font-mono truncate" style={{ fontSize: 11, color: '#8b5cf6' }}>{hash(pipe.anchored.txHash, 14)} ↗</a>
-                : <span className="font-mono text-gray-300 truncate" style={{ fontSize: 11 }}>{hash(pipe.anchored.txHash, 14)}</span>
-              }
-            </div>
-          )}
-
-          {/* Pipeline dots */}
-          <div className="flex items-center gap-2 mt-1.5">
-            <span className="font-pixel text-gray-500" style={{ fontSize: 10 }}>Pipeline</span>
-            <div className="flex items-center gap-1.5">
-              <PipelineDot done={pipe.stored?.done}   label="Stored on 0G"      explorerUrl={pipe.stored?.explorerUrl}   />
-              <span style={{ width: 12, height: 1, background: '#374151', display: 'inline-block' }} />
-              <PipelineDot done={pipe.anchored?.done}  label="Anchored on-chain" explorerUrl={pipe.anchored?.explorerUrl}  />
-              <span style={{ width: 12, height: 1, background: '#374151', display: 'inline-block' }} />
-              <PipelineDot done={pipe.finalized?.done} label="DA Finalized"      pending={pipe.finalized?.status === 'pending'} />
-              <span style={{ width: 12, height: 1, background: '#374151', display: 'inline-block' }} />
-              <PipelineDot done={pipe.validated?.done} label={`TEE: ${pipe.validated?.verdict || 'pending'}`} />
-            </div>
+          {/* Pipeline track */}
+          <div className="flex items-center gap-1 mt-2.5">
+            {[
+              { done: pipe.stored?.done,   label: 'Stored',   url: pipe.stored?.explorerUrl },
+              { done: pipe.anchored?.done,  label: 'Anchored', url: pipe.anchored?.explorerUrl },
+              { done: pipe.finalized?.done, label: 'DA Final', pending: pipe.finalized?.status === 'pending' },
+              { done: pipe.validated?.done, label: `TEE ${pipe.validated?.verdict || ''}` },
+            ].map((p, i) => (
+              <React.Fragment key={i}>
+                <PipelineDot {...p} />
+                {i < 3 && <span style={{ flex: 1, height: 2, background: p.done ? '#10b98155' : '#1f2937', borderRadius: 2 }} />}
+              </React.Fragment>
+            ))}
             {pipe.validated?.verdict && (
-              <span className="font-pixel ml-1" style={{ fontSize: 10, color: pipe.validated.verdict === 'CLEAN' ? '#22d3ee' : '#f59e0b' }}>
+              <span className="font-pixel font-bold ml-1" style={{ fontSize: 10, color: pipe.validated.verdict === 'CLEAN' ? '#22d3ee' : '#f59e0b' }}>
                 {pipe.validated.verdict}
               </span>
             )}
@@ -270,35 +247,27 @@ function ZGPlayerCard({ dashboard }) {
       )}
 
       {/* ── Activity Feed ── */}
-      {activity.length > 0 && (
-        <div className="px-3 py-2.5">
-          <span className="text-xs font-pixel font-bold text-white block mb-2">ACTIVITY</span>
+      {acts.length > 0 && (
+        <div className="px-4 py-3 flex flex-col gap-0" style={{ flex: 1, overflowY: 'auto' }}>
+          <span className="font-pixel font-bold text-white mb-2" style={{ fontSize: 11 }}>ACTIVITY</span>
           <div className="flex flex-col gap-2">
-            {activity.map((ev) => {
-              const meta = ACTIVITY_META[ev.type] || { color: '#6b7280', dot: '·' };
-              const ts = ev.timestamp
-                ? new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-                : '';
+            {acts.map((ev) => {
+              const m  = ACTIVITY_META[ev.type] || { color: '#6b7280', dot: '·', label: ev.type };
+              const ts = ev.timestamp ? new Date(ev.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
               return (
-                <div key={ev.id} className="flex flex-col gap-0.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span style={{ fontSize: 12 }}>{meta.dot}</span>
-                      <span className="font-pixel font-bold truncate" style={{ fontSize: 11, color: meta.color }}>{ev.title}</span>
+                <div key={ev.id} className="rounded-xl px-3 py-2" style={{ background: `${m.color}0d`, border: `1px solid ${m.color}25` }}>
+                  <div className="flex items-center justify-between mb-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <span style={{ fontSize: 11 }}>{m.dot}</span>
+                      <span className="font-pixel font-bold" style={{ fontSize: 11, color: m.color }}>{ev.title}</span>
                     </div>
-                    <span className="font-pixel flex-shrink-0" style={{ fontSize: 10, color: '#4b5563' }}>{ts}</span>
+                    <span className="font-pixel flex-shrink-0" style={{ fontSize: 9, color: '#4b5563' }}>{ts}</span>
                   </div>
                   {ev.description && (
-                    <p className="font-pixel" style={{ fontSize: 10, color: '#6b7280', paddingLeft: 20 }}>{ev.description}</p>
+                    <p className="font-pixel" style={{ fontSize: 10, color: '#6b7280', lineHeight: 1.4 }}>{ev.description}</p>
                   )}
                   {ev.explorerUrl && (
-                    <a
-                      href={ev.explorerUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="font-pixel"
-                      style={{ fontSize: 10, color: '#22d3ee', paddingLeft: 20, textDecoration: 'none' }}
-                    >
+                    <a href={ev.explorerUrl} target="_blank" rel="noopener noreferrer" className="font-pixel font-bold mt-0.5 inline-block" style={{ fontSize: 10, color: '#22d3ee', textDecoration: 'none' }}>
                       View on explorer ↗
                     </a>
                   )}
@@ -752,19 +721,23 @@ function GameRootContent({ privyEnabled }) {
       )}
 
       {currentScreen === 'menu' && !showLeaderboard && (
-        <div className="fixed inset-0 overflow-y-auto z-[100]">
-          <div className="min-h-full flex items-center justify-center py-6 px-4">
-            <div className="max-w-sm w-full flex flex-col items-center gap-4 fade-in">
+        <>
+          {/* ── LEFT PANEL — 0G Network + NFT Pass ── */}
+          <div className="hidden lg:flex fixed left-5 top-1/2 -translate-y-1/2 z-[100] flex-col gap-3" style={{ width: 270 }}>
+            <ZGNetworkPanel network={zgNetwork} />
+            <NFTPassInline walletAddress={walletAddress || privyWalletAddress} />
+          </div>
 
-              {/* Title */}
+          {/* ── CENTER — Main actions ── */}
+          <div className="fixed inset-0 flex items-center justify-center z-[100] pointer-events-none">
+            <div className="flex flex-col items-center gap-4 fade-in pointer-events-auto" style={{ width: 320 }}>
               <h2
-                className="text-4xl md:text-5xl font-pixel text-zerion-yellow"
-                style={{ textShadow: '4px 4px 0 rgba(0,0,0,0.8), 0 0 30px rgba(255,215,0,0.6)' }}
+                className="text-5xl font-pixel text-zerion-yellow"
+                style={{ textShadow: '4px 4px 0 rgba(0,0,0,0.9), 0 0 40px rgba(255,215,0,0.7)' }}
               >
                 READY?
               </h2>
 
-              {/* Primary actions */}
               <button
                 onClick={handleStartGame}
                 disabled={isStartingGame}
@@ -775,53 +748,62 @@ function GameRootContent({ privyEnabled }) {
               </button>
 
               {startGameError && (
-                <p className="text-xs font-pixel text-red-400 text-center px-2">
-                  ⚠️ {startGameError}
-                </p>
+                <p className="text-xs font-pixel text-red-400 text-center">⚠️ {startGameError}</p>
               )}
 
               <button onClick={handleOpenLeaderboard} className="pixel-button-secondary w-full">
                 🏆 LEADERBOARD
               </button>
 
-              {/* Player Stats */}
-              <div className="grid grid-cols-3 gap-3 w-full">
+              {/* Stats */}
+              <div className="grid grid-cols-3 gap-2 w-full">
                 {[
                   { label: 'BEST',  value: playerStats.bestScore  > 0 ? playerStats.bestScore.toLocaleString()  : '0' },
                   { label: 'COINS', value: playerStats.totalCoins > 0 ? playerStats.totalCoins.toLocaleString() : '0' },
-                  { label: 'RANK',  value: playerStats.rank > 0 ? `#${playerStats.rank}` : '-' },
+                  { label: 'RANK',  value: playerStats.rank > 0 ? `#${playerStats.rank}` : '—' },
                 ].map(({ label, value }) => (
-                  <div key={label} className="bg-zerion-blue-dark/60 border-2 border-zerion-blue rounded-lg p-3 text-center">
-                    <p className="text-xs font-pixel text-zerion-blue-light mb-1">{label}</p>
+                  <div
+                    key={label}
+                    className="rounded-xl p-3 text-center"
+                    style={{ background: 'rgba(5,15,30,0.8)', border: '2px solid #0f2744', backdropFilter: 'blur(8px)' }}
+                  >
+                    <p className="font-pixel text-gray-500 mb-1" style={{ fontSize: 10 }}>{label}</p>
                     {statsLoading
                       ? <div className="w-4 h-4 mx-auto border-2 border-zerion-yellow border-t-transparent rounded-full animate-spin" />
-                      : <p className="text-lg font-pixel text-zerion-yellow font-bold">{value}</p>
+                      : <p className="font-pixel font-bold text-zerion-yellow" style={{ fontSize: 20 }}>{value}</p>
                     }
                   </div>
                 ))}
               </div>
 
-              {!statsLoading && (
-                <button
-                  onClick={() => { fetchPlayerStats(); fetchPlayerRank(); fetch0GData(walletAddress || privyWalletAddress); }}
-                  className="text-xs font-pixel text-zerion-blue-light hover:text-zerion-yellow transition-colors"
-                >
-                  🔄 Refresh
-                </button>
-              )}
+              <button
+                onClick={() => { fetchPlayerStats(); fetchPlayerRank(); fetch0GData(walletAddress || privyWalletAddress); }}
+                className="font-pixel text-gray-600 hover:text-zerion-yellow transition-colors"
+                style={{ fontSize: 10 }}
+              >
+                🔄 Refresh
+              </button>
 
-              {/* NFT Pass — inline in column, not floating */}
-              <NFTPassInline walletAddress={walletAddress || privyWalletAddress} />
-
-              {/* 0G Network status */}
-              <ZGNetworkCard network={zgNetwork} />
-
-              {/* 0G Player panel — only shown when dashboard data available */}
-              {zgDashboard && <ZGPlayerCard dashboard={zgDashboard} />}
-
+              {/* Mobile-only: NFT Pass */}
+              <div className="lg:hidden w-full">
+                <NFTPassInline walletAddress={walletAddress || privyWalletAddress} />
+              </div>
             </div>
           </div>
-        </div>
+
+          {/* ── RIGHT PANEL — 0G Player data ── */}
+          <div className="hidden lg:block fixed right-5 top-1/2 -translate-y-1/2 z-[100]" style={{ width: 280 }}>
+            {zgDashboard
+              ? <ZGPlayerPanel dashboard={zgDashboard} />
+              : (
+                <div className="rounded-2xl p-5 text-center" style={{ background: 'rgba(5,15,30,0.85)', border: '2px solid #0f2744', backdropFilter: 'blur(12px)' }}>
+                  <div className="w-8 h-8 mx-auto mb-3 border-2 border-zerion-yellow border-t-transparent rounded-full animate-spin" />
+                  <p className="font-pixel text-gray-600" style={{ fontSize: 11 }}>Loading your 0G data…</p>
+                </div>
+              )
+            }
+          </div>
+        </>
       )}
 
       {currentScreen === 'game' && (
