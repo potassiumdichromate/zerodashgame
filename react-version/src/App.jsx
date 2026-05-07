@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import { usePrivy } from '@privy-io/react-auth';
+import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { useWallet } from './hooks/useWallet';
 import { BlockchainToastProvider, useBlockchainToast } from './context/BlockchainToastContext';
 import WalletConnect from './components/WalletConnect';
@@ -20,6 +20,11 @@ import desktopBg from './assets/bg.png';
 import mobileBg from './assets/dbg.png';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
+
+// 0G ZeroDash decentralized backend
+const ZG_BACKEND = 'https://zerog-zerodash.onrender.com';
+// Unity WebGL build served from Cloudflare R2
+const GAME_BUILD_URL = (import.meta.env.VITE_R2_BUILD_URL || 'https://pub-c51325b05b6848599be1cf2978bc4c0e.r2.dev/latest') + '/index.html';
 
 function HomeBackground() {
   return (
@@ -57,6 +62,7 @@ function GameRootContent({ privyEnabled }) {
   } = useWallet();
 
   const { logout: privyLogout } = usePrivy();
+  const { wallets: privyWallets } = useWallets();
 
   const [currentScreen, setCurrentScreen] = useState('splash');
   const [showLeaderboard, setShowLeaderboard] = useState(false);
@@ -64,6 +70,8 @@ function GameRootContent({ privyEnabled }) {
   const [privyWalletAddress, setPrivyWalletAddress] = useState(null);
   const [isJwtBootstrapping, setIsJwtBootstrapping] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isStartingGame, setIsStartingGame] = useState(false);
+  const [startGameError, setStartGameError] = useState(null);
 
   const [playerStats, setPlayerStats] = useState({
     bestScore: 0,
@@ -225,12 +233,14 @@ function GameRootContent({ privyEnabled }) {
     disconnectWallet();
     localStorage.removeItem('walletAddress');
     localStorage.removeItem('privySession');
+    localStorage.removeItem('zgJwt');
     try {
       await privyLogout();
     } catch {}
     setPrivyWalletAddress(null);
     setCurrentScreen('splash');
     setShowLeaderboard(false);
+    setStartGameError(null);
   };
 
   /**
@@ -245,8 +255,84 @@ function GameRootContent({ privyEnabled }) {
     }
   };
 
-  const handleStartGame = () => {
-    setCurrentScreen('game');
+  /**
+   * SIWE-style JWT authentication with the 0G ZeroDash backend.
+   * Caches the token in localStorage to avoid re-signing within the same session.
+   */
+  const doJwtAuth = async (addr) => {
+    const normalised = addr.toLowerCase();
+
+    // Use cached JWT if it belongs to this wallet and is not expiring within 5 min
+    const cached = localStorage.getItem('zgJwt');
+    if (cached) {
+      try {
+        const [, payloadB64] = cached.split('.');
+        const payload = JSON.parse(atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/')));
+        if (
+          payload?.walletAddress === normalised &&
+          payload?.exp * 1000 > Date.now() + 5 * 60 * 1000
+        ) {
+          return cached;
+        }
+      } catch { /* malformed token — re-auth */ }
+    }
+
+    // Step 1: get nonce + exact message to sign
+    const nonceRes = await fetch(`${ZG_BACKEND}/auth/nonce?wallet=${encodeURIComponent(normalised)}`);
+    if (!nonceRes.ok) throw new Error(`Nonce request failed: ${nonceRes.status}`);
+    const { message, nonce } = await nonceRes.json();
+
+    // Hex-encode the message (required by personal_sign)
+    const msgBytes = new TextEncoder().encode(message);
+    const msgHex = '0x' + Array.from(msgBytes, b => b.toString(16).padStart(2, '0')).join('');
+
+    // Step 2: sign with the appropriate wallet provider
+    let signature;
+    const privyWallet = privyWallets?.find(w => w.address.toLowerCase() === normalised);
+    if (privyWallet) {
+      const provider = await privyWallet.getEthereumProvider();
+      signature = await provider.request({ method: 'personal_sign', params: [msgHex, normalised] });
+    } else if (window.ethereum) {
+      signature = await window.ethereum.request({ method: 'personal_sign', params: [msgHex, normalised] });
+    } else {
+      throw new Error('No wallet provider available for signing');
+    }
+
+    // Step 3: exchange signature for JWT
+    const loginRes = await fetch(`${ZG_BACKEND}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wallet: normalised, signature, nonce }),
+    });
+    if (!loginRes.ok) {
+      const err = await loginRes.json().catch(() => ({}));
+      throw new Error(err.error || `Login failed: ${loginRes.status}`);
+    }
+    const { token } = await loginRes.json();
+    localStorage.setItem('zgJwt', token);
+    return token;
+  };
+
+  /**
+   * Authenticate with 0G backend then redirect to the Unity WebGL game at
+   * the Cloudflare R2 URL with the JWT as a query param.
+   * GameBootstrapper.cs reads ?token=<jwt> on startup.
+   */
+  const handleStartGame = async () => {
+    const addr = walletAddress || privyWalletAddress;
+    if (!addr) return;
+
+    setIsStartingGame(true);
+    setStartGameError(null);
+
+    try {
+      const jwt = await doJwtAuth(addr);
+      window.location.href = `${GAME_BUILD_URL}?token=${encodeURIComponent(jwt)}`;
+    } catch (err) {
+      console.error('JWT auth failed:', err);
+      setStartGameError(err.message || 'Authentication failed — please try again.');
+      setIsStartingGame(false);
+    }
   };
 
   const handleBackToMenu = () => {
@@ -344,9 +430,20 @@ function GameRootContent({ privyEnabled }) {
                 READY?
               </h2>
 
-              <button onClick={handleStartGame} className="pixel-button-primary w-full text-lg">
-                🎮 START GAME
+              <button
+                onClick={handleStartGame}
+                disabled={isStartingGame}
+                className="pixel-button-primary w-full text-lg"
+                style={{ opacity: isStartingGame ? 0.7 : 1 }}
+              >
+                {isStartingGame ? '🔐 Authenticating...' : '🎮 START GAME'}
               </button>
+
+              {startGameError && (
+                <p className="text-xs font-pixel text-red-400 text-center mt-1 px-2">
+                  ⚠️ {startGameError}
+                </p>
+              )}
 
               <button onClick={handleOpenLeaderboard} className="pixel-button-secondary w-full">
                 🏆 LEADERBOARD
