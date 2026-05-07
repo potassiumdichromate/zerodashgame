@@ -261,27 +261,20 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
             canvas.style.height = `${dimensions.height}px`;
           }
 
-          // Send wallet address to Unity after instance is ready
-          if (storedWalletAddress) {
+          // Send JWT to Unity after instance is ready.
+          // zgJwt is set by App.jsx's doJwtAuth before handleStartGame redirects/loads.
+          const jwt = localStorage.getItem('zgJwt');
+          if (jwt) {
             setTimeout(() => {
               try {
-                unityInstance.SendMessage('GameBootstrapper', 'SetWalletAddress', storedWalletAddress);
-                console.log('✅ Wallet address sent to Unity:', storedWalletAddress);
-                
-                window.playerWalletAddress = storedWalletAddress;
-                console.log('✅ Wallet set as window.playerWalletAddress');
-                
-                try {
-                  unityInstance.SendMessage('GameBootstrapper', 'SaveWalletAddress', storedWalletAddress);
-                  console.log('✅ Wallet saved in Unity PlayerPrefs');
-                } catch (err) {
-                  console.log('ℹ️ SaveWalletAddress not available (optional)');
-                }
-                
+                unityInstance.SendMessage('GameBootstrapper', 'SetJwtToken', jwt);
+                console.log('✅ JWT sent to Unity via SendMessage');
               } catch (err) {
-                console.warn('⚠️ Could not send wallet to Unity:', err);
+                console.warn('⚠️ Could not send JWT to Unity:', err);
               }
             }, 1500);
+          } else {
+            console.warn('⚠️ No zgJwt in localStorage — Unity will boot in offline mode');
           }
         } catch (err) {
           console.error('Unity instance creation failed:', err);
