@@ -23,8 +23,6 @@ const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
 // 0G ZeroDash decentralized backend
 const ZG_BACKEND = 'https://zerog-zerodash.onrender.com';
-// Unity WebGL build served from Cloudflare R2
-const GAME_BUILD_URL = (import.meta.env.VITE_R2_BUILD_URL || 'https://pub-c51325b05b6848599be1cf2978bc4c0e.r2.dev/v12') + '/index.html';
 
 function HomeBackground() {
   return (
@@ -314,9 +312,9 @@ function GameRootContent({ privyEnabled }) {
   };
 
   /**
-   * Authenticate with 0G backend then redirect to the Unity WebGL game at
-   * the Cloudflare R2 URL with the JWT as a query param.
-   * GameBootstrapper.cs reads ?token=<jwt> on startup.
+   * Do JWT auth first (stores token in localStorage['zgJwt']),
+   * then load the game inline via GameCanvas — same as before.
+   * GameCanvas.jsx picks up zgJwt and sends it to Unity via SendMessage.
    */
   const handleStartGame = async () => {
     const addr = walletAddress || privyWalletAddress;
@@ -326,8 +324,9 @@ function GameRootContent({ privyEnabled }) {
     setStartGameError(null);
 
     try {
-      const jwt = await doJwtAuth(addr);
-      window.location.href = `${GAME_BUILD_URL}?token=${encodeURIComponent(jwt)}`;
+      await doJwtAuth(addr); // stores JWT in localStorage['zgJwt']
+      setIsStartingGame(false);
+      setCurrentScreen('game'); // original behavior — GameCanvas loads Unity inline
     } catch (err) {
       console.error('JWT auth failed:', err);
       setStartGameError(err.message || 'Authentication failed — please try again.');
