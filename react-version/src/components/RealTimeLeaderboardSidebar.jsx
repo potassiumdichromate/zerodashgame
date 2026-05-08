@@ -36,7 +36,7 @@ export default function RealTimeLeaderboardSidebar({ isVisible, currentUserAddre
       const data = await response.json();
       
       // Transform backend data to component format
-      const formattedData = data.map((player, index) => ({
+      const formattedData = data?.leaderboard.map((player, index) => ({
         rank: index + 1,
         address: truncateAddress(player.walletAddress),
         fullAddress: player.walletAddress,
