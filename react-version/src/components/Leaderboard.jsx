@@ -42,14 +42,14 @@ export default function Leaderboard({ isOpen, onClose }) {
       const data = await response.json();
       
       // Transform backend data to component format with ranks
-      const formattedData = data.map((player, index) => ({
+      const formattedData = data?.leaderboard.map((player, index) => ({
         rank: index + 1,
-        player: truncateAddress(player.walletAddress),
-        fullAddress: player.walletAddress,
-        score: player.highScore,
+        player: truncateAddress(player?.walletAddress),
+        fullAddress: player?.walletAddress,
+        score: player?.highScore,
         saveBackedBy0g:
           typeof player?.trust?.saveBackedBy0g === 'boolean'
-            ? player.trust.saveBackedBy0g
+            ? player?.trust?.saveBackedBy0g
             : false,
         acVettedWithCompute: player?.trust?.antiCheatSource === '0g_compute',
       }));
