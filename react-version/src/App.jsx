@@ -12,6 +12,8 @@ import Particles from './components/Particles';
 import Login from './components/Login';
 import LoginModal from './components/LoginModal';
 import BackgroundMusic from './components/BackgroundMusic';
+import LandingPage from './components/LandingPage';
+
 import desktopBg from './assets/bg.png';
 import mobileBg from './assets/dbg.png';
 
@@ -662,10 +664,15 @@ function GameRootContent({ privyEnabled }) {
   };
 
   return (
-    <div className="relative w-full h-screen overflow-hidden">
-      <HomeBackground />
-      <Particles />
+    <div className={`relative w-full ${currentScreen === 'splash' ? 'min-h-screen overflow-y-auto' : 'h-screen overflow-hidden'}`}>
+      {currentScreen !== 'splash' && (
+        <>
+          <HomeBackground />
+          <Particles />
+        </>
+      )}
       <BackgroundMusic isPlaying={currentScreen !== 'game'} />
+
 
       {(isConnected || privyWalletAddress) && currentScreen !== 'splash' && (
         <div className="fixed top-5 right-5 z-[1000] flex items-center gap-2 transition-all duration-400 opacity-100 translate-y-0">
@@ -720,12 +727,7 @@ function GameRootContent({ privyEnabled }) {
       )}
 
       {currentScreen === 'splash' && !isJwtBootstrapping && (
-        <WalletConnect
-          onConnect={handleConnect}
-          isConnecting={isConnecting}
-          error={walletError}
-          onPrivyConnect={privyEnabled ? () => setShowPrivyLogin(true) : undefined}
-        />
+        <LandingPage onPlayNow={() => setShowPrivyLogin(true)} />
       )}
 
       {currentScreen === 'menu' && !showLeaderboard && (
@@ -824,8 +826,8 @@ function GameRootContent({ privyEnabled }) {
 
       <Leaderboard isOpen={showLeaderboard} onClose={handleCloseLeaderboard} />
 
-      {import.meta.env.DEV && (
-        <div className="fixed bottom-2 left-2 text-xs opacity-50 font-mono bg-black/50 p-2 rounded z-[9999]">
+      {import.meta.env.DEV && currentScreen !== 'splash' && (
+        <div className="fixed bottom-2 left-2 text-[10px] sm:text-xs font-mono bg-black/85 border border-white/10 p-3 rounded-lg z-[9999] shadow-2xl backdrop-blur-md text-white/80">
           <div>Screen: {currentScreen}</div>
           <div>Wallet: {isConnected ? '✅' : '❌'} {truncatedAddress || 'Not connected'}</div>
           <div>Stats: Best={playerStats.bestScore} Coins={playerStats.totalCoins} Rank={playerStats.rank || '-'}</div>
