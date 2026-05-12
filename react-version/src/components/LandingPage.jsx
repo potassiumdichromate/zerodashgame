@@ -399,26 +399,6 @@ export default function LandingPage({ onPlayNow }) {
       </div>
     </motion.section>
 
-    {/* PERSISTENT IDENTITY SECTION */}
-    <motion.section className="section-alt-dark relative overflow-hidden py-32" {...revealUp}>
-      <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
-        <span className="text-gold font-pixel text-[10px] sm:text-xs tracking-widest uppercase mb-6 block drop-shadow-[0_0_10px_gold/0.5]">Ecosystem Superpower</span>
-        <h2 className="font-pixel text-2xl sm:text-4xl lg:text-5xl uppercase mb-8 leading-tight drop-shadow-[0_0_20px_white/0.2]">
-          One Identity.<br />
-          <span className="text-cyan-glow">Infinite Progression.</span>
-        </h2>
-        <p className="text-base sm:text-lg text-muted-foreground mb-12 max-w-2xl mx-auto leading-relaxed">
-          Your assets, achievements, and progression live permanently onchain.<br className="hidden sm:block" />
-          This is your hidden superpower across the entire <span className="text-gold">Kult Ecosystem.</span>
-        </p>
-        <div className="flex flex-center justify-center">
-            <div className="px-6 py-3 border border-cyan-glow/20 rounded-full bg-cyan-glow/5 backdrop-blur-sm">
-              <span className="text-cyan-glow font-pixel text-[10px] uppercase tracking-[0.2em]">Verified by 0G Storage Protocol</span>
-            </div>
-        </div>
-      </div>
-    </motion.section>
-
       {/* BUILT FOR THE FUTURE */}
       <motion.section id="about" className="section-alt-bright" {...revealLeft}>
         <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-[1fr_1.4fr] gap-12 items-center">
