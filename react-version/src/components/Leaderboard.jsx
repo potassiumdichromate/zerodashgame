@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { X } from 'lucide-react';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://zerodashbackend.onrender.com';
 
@@ -152,6 +153,15 @@ export default function Leaderboard({ isOpen, onClose }) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Close Icon */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-zerion-yellow hover:text-white transition-colors p-1"
+          title="Close Leaderboard"
+        >
+          <X size={28} />
+        </button>
+
         {/* Title */}
         <h2
           className="text-2xl md:text-3xl font-pixel text-zerion-yellow text-center mb-8"

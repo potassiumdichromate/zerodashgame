@@ -40,31 +40,39 @@ export const BlockchainToastProvider = ({ children }) => {
     }, duration);
   }, []);
 
+  const clearToasts = useCallback(() => {
+    console.log('🔔 [TOAST] Clearing all toasts');
+    setToasts([]);
+  }, []);
+
   const hideToast = useCallback((id) => {
     console.log('🔔 [TOAST] Manually hiding toast:', id);
     setToasts(prev => prev.filter(t => t.id !== id));
   }, []);
 
-  console.log('🔔 [TOAST] Current toasts in state:', toasts);
+  // Check if logged in to show toasts
+  const isLoggedIn = !!localStorage.getItem('walletAddress');
+
+  console.log('🔔 [TOAST] Current toasts in state:', toasts, 'isLoggedIn:', isLoggedIn);
 
   return (
-    <BlockchainToastContext.Provider value={{ showToast, hideToast }}>
+    <BlockchainToastContext.Provider value={{ showToast, hideToast, clearToasts }}>
       {children}
-      {/* Render all toasts */}
-      <div className="toast-container" style={{ position: 'fixed', top: 0, right: 0, zIndex: 999999, pointerEvents: 'none' }}>
-        {console.log('🔔 [TOAST] Rendering toast container with', toasts.length, 'toasts')}
-        {toasts.map((toast, index) => {
-          console.log('🔔 [TOAST] Rendering toast:', toast.id, toast);
-          return (
-            <BlockchainToast 
-              key={toast.id} 
-              toast={toast} 
-              onClose={() => hideToast(toast.id)}
-              style={{ top: `${80 + index * 120}px`, pointerEvents: 'auto' }}
-            />
-          );
-        })}
-      </div>
+      {/* Render all toasts - only if logged in */}
+      {isLoggedIn && toasts.length > 0 && (
+        <div className="toast-container" style={{ position: 'fixed', top: 0, right: 0, zIndex: 999999, pointerEvents: 'none' }}>
+          {toasts.map((toast, index) => {
+            return (
+              <BlockchainToast 
+                key={toast.id} 
+                toast={toast} 
+                onClose={() => hideToast(toast.id)}
+                style={{ top: `${80 + index * 120}px`, pointerEvents: 'auto' }}
+              />
+            );
+          })}
+        </div>
+      )}
     </BlockchainToastContext.Provider>
   );
 };

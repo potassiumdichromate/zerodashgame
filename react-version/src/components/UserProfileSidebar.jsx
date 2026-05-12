@@ -16,6 +16,7 @@ export default function UserProfileSidebar({ isVisible, walletAddress }) {
   const [userStats, setUserStats] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [copied, setCopied] = useState(false);
 
   /**
    * Fetch user profile stats from backend
@@ -213,8 +214,21 @@ export default function UserProfileSidebar({ isVisible, walletAddress }) {
               👤
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-pixel text-zerion-blue-light">PLAYER</p>
-              <p className="text-sm font-pixel text-zerion-yellow font-bold truncate">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-pixel text-zerion-blue-light">PLAYER</p>
+                {copied && <span className="text-[8px] font-pixel text-green-400 animate-pulse">COPIED!</span>}
+              </div>
+              <p 
+                className="text-sm font-pixel text-zerion-yellow font-bold truncate cursor-pointer hover:text-white transition-colors"
+                title="Click to copy full address"
+                onClick={() => {
+                  if (walletAddress) {
+                    navigator.clipboard.writeText(walletAddress);
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 2000);
+                  }
+                }}
+              >
                 {truncateAddress(walletAddress)}
               </p>
               {userStats?.lastActive && (

@@ -155,12 +155,12 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
         // Portrait aspect ratio 9:16
         const canvasHeight = Math.floor(canvasWidth * (16 / 9));
         
-        // Make sure height fits on screen (leave space for back button)
-        const maxHeight = screenHeight - 100;
+        // Make sure height fits on screen (leave space for top/bottom buttons)
+        const maxHeight = screenHeight - 160; 
         const finalHeight = Math.min(canvasHeight, maxHeight);
         const finalWidth = Math.floor(finalHeight * (9 / 16));
         
-        setDimensions({ width: finalWidth, height: finalHeight });
+        setDimensions({ width: finalWidth, height: finalWidth * (16 / 9) });
         
         console.log('📱 Mobile Portrait:', { width: finalWidth, height: finalHeight });
       } else {
@@ -426,24 +426,24 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
         maxHeight: '100vh'
       }}
     >
-      {/* Back Button */}
-      {onBack && isVisible && !isLoading && !checkingNFT && (
+      {/* Back Button (Right Side) */}
+      {onBack && isVisible && (
         <button
           onClick={onBack}
-          className="absolute -top-16 left-0 pixel-button-secondary text-xs px-6 py-2 z-10"
+          className={`absolute ${isMobile ? '-top-12' : '-top-16'} right-0 pixel-button-secondary text-xs px-6 py-2 z-10`}
           style={{
             fontSize: isMobile ? '8px' : '10px',
             padding: isMobile ? '6px 12px' : '8px 16px',
             border: '3px solid #3b82f6'
           }}
         >
-          ← {isMobile ? 'BACK' : 'BACK TO MENU'}
+          {isMobile ? 'BACK' : 'BACK TO MENU'} →
         </button>
       )}
 
-      {/* NFT Status Badge (Top Right) */}
+      {/* NFT Status Badge (Left Side) */}
       {isVisible && !checkingNFT && (
-        <div className="absolute -top-16 right-0 z-10">
+        <div className={`absolute ${isMobile ? '-top-12' : '-top-16'} left-0 z-10`}>
           <div className={`
             px-4 py-2 rounded-lg border-3 font-pixel text-xs font-bold
             ${hasNFT 

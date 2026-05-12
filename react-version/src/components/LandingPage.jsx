@@ -133,7 +133,7 @@ const staggerItem = {
   }
 };
 
-export default function LandingPage({ onPlayNow }) {
+export default function LandingPage({ onPlayNow, onLogout, isLoggedIn, heroOverride }) {
   const { scrollYProgress } = useScroll();
   const scaleX = useSpring(scrollYProgress, {
     stiffness: 100,
@@ -170,35 +170,53 @@ export default function LandingPage({ onPlayNow }) {
         {/* NAV */}
         <header className="relative max-w-7xl mx-auto flex items-center justify-between px-6 py-6 z-10">
           <Logo />
-          <button onClick={onPlayNow} className="btn-gold text-sm">CONNECT WALLET <Zap size={16} fill="currentColor" /></button>
+          {isLoggedIn ? (
+            <button onClick={onLogout} className="btn-gold text-sm">
+              LOGOUT
+            </button>
+          ) : (
+            <button onClick={onPlayNow} className="btn-gold text-sm">
+              CONNECT WALLET <Zap size={16} fill="currentColor" />
+            </button>
+          )}
         </header>
 
         {/* HERO CONTENT */}
-        <div className="relative max-w-7xl mx-auto px-6 pt-12 pb-24 lg:pt-20 lg:pb-40 z-10">
-          <div className="max-w-2xl space-y-7">
-            <div className="flex flex-col gap-2">
-              <span className="text-cyan-glow font-pixel text-[10px] sm:text-xs tracking-[0.3em] uppercase opacity-80">The First Intelligent Onchain Arcade</span>
-              <h1
-                className="text-5xl sm:text-7xl lg:text-8xl font-black tracking-tight uppercase leading-[0.95] drop-shadow-[0_4px_30px_rgba(0,0,0,0.9)]"
-                style={{ fontFamily: '"Press Start 2P", monospace', lineHeight: 1.1 }}
-              >
-                <span className="text-gold">Zero</span><br />
-                <span className="text-cyan-glow">Dash</span>
-              </h1>
-            </div>
-            <p className="text-xl sm:text-2xl font-bold uppercase tracking-wide drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
-              Risk Nothing. <span className="text-gold">Earn Everything.</span>
-            </p>
-            <p className="text-base text-foreground/85 max-w-md drop-shadow">
-              The intelligent onchain arcade built for the 0G era.<br />
-              <span className="text-gold">Dash. Compete. Own everything.</span>
-            </p>
-            <div className="flex flex-wrap gap-4">
-              <button onClick={onPlayNow} className="btn-gold">CONNECT WALLET <Zap size={16} fill="currentColor" /></button>
-              <a href="#trailer" className="btn-outline"><Play size={16} /> WATCH TRAILER</a>
+        {heroOverride ? (
+          <div className="relative z-10 w-full">
+            {heroOverride}
+          </div>
+        ) : (
+          <div className="relative max-w-7xl mx-auto px-6 pt-12 pb-24 lg:pt-20 lg:pb-40 z-10">
+            <div className="max-w-2xl space-y-7">
+              <div className="flex flex-col gap-2">
+                <span className="text-cyan-glow font-pixel text-[10px] sm:text-xs tracking-[0.3em] uppercase opacity-80">The First Intelligent Onchain Arcade</span>
+                <h1
+                  className="text-5xl sm:text-7xl lg:text-8xl font-black tracking-tight uppercase leading-[0.95] drop-shadow-[0_4px_30px_rgba(0,0,0,0.9)]"
+                  style={{ fontFamily: '"Press Start 2P", monospace', lineHeight: 1.1 }}
+                >
+                  <span className="text-gold">Zero</span><br />
+                  <span className="text-cyan-glow">Dash</span>
+                </h1>
+              </div>
+              <p className="text-xl sm:text-2xl font-bold uppercase tracking-wide drop-shadow-[0_2px_10px_rgba(0,0,0,0.9)]">
+                Risk Nothing. <span className="text-gold">Earn Everything.</span>
+              </p>
+              <p className="text-base text-foreground/85 max-w-md drop-shadow">
+                The intelligent onchain arcade built for the 0G era.<br />
+                <span className="text-gold">Dash. Compete. Own everything.</span>
+              </p>
+              <div className="flex flex-wrap gap-4">
+                {isLoggedIn ? (
+                  <button onClick={onLogout} className="btn-gold">LOGOUT</button>
+                ) : (
+                  <button onClick={onPlayNow} className="btn-gold">CONNECT WALLET <Zap size={16} fill="currentColor" /></button>
+                )}
+                <a href="#trailer" className="btn-outline"><Play size={16} /> WATCH TRAILER</a>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
       </motion.section>
 
@@ -450,7 +468,11 @@ export default function LandingPage({ onPlayNow }) {
                   The Adventure<br />is on <span className="text-gold"><ZeroGLogo className="h-8 sm:h-10 lg:h-12" /></span>.
                 </h2>
                 <p className="hidden sm:block heading-section text-sm tracking-wider">Risk Nothing.<br />Earn Everything.</p>
-                <button onClick={onPlayNow} className="btn-gold mx-auto sm:ml-auto sm:mr-0">CONNECT WALLET <Zap size={16} fill="currentColor" /></button>
+                {isLoggedIn ? (
+                  <button onClick={onLogout} className="btn-gold mx-auto sm:ml-auto sm:mr-0">LOGOUT</button>
+                ) : (
+                  <button onClick={onPlayNow} className="btn-gold mx-auto sm:ml-auto sm:mr-0">CONNECT WALLET <Zap size={16} fill="currentColor" /></button>
+                )}
               </div>
             </div>
           </div>

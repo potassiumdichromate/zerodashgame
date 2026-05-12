@@ -13,9 +13,10 @@ import Login from './components/Login';
 import LoginModal from './components/LoginModal';
 import BackgroundMusic from './components/BackgroundMusic';
 import LandingPage from './components/LandingPage';
+import { Gamepad2, Trophy } from 'lucide-react';
 
 import desktopBg from './assets/bg.png';
-import mobileBg from './assets/dbg.png';
+import backgroundVideo from './assets/bkg.mp4';
 
 // const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -27,16 +28,16 @@ const BACKEND_URL =
 function HomeBackground() {
   return (
     <>
-      <div
-        aria-hidden="true"
-        className="fixed inset-0 -z-20 bg-center bg-cover bg-no-repeat md:hidden"
-        style={{ backgroundImage: `url(${mobileBg})` }}
-      />
-      <div
-        aria-hidden="true"
-        className="fixed inset-0 -z-20 hidden bg-center bg-cover bg-no-repeat md:block"
-        style={{ backgroundImage: `url(${desktopBg})` }}
-      />
+      <video
+        autoPlay
+        loop
+        muted
+        playsInline
+        className="fixed inset-0 w-full h-full object-cover -z-20"
+        poster={desktopBg}
+      >
+        <source src={backgroundVideo} type="video/mp4" />
+      </video>
       <div
         aria-hidden="true"
         className="fixed inset-0 -z-10 bg-gradient-to-b from-black/35 via-black/55 to-black/80"
@@ -100,7 +101,7 @@ function ZGNetworkPanel({ network }) {
   ].filter(x => x.svc);
 
   return (
-    <div className="rounded-2xl overflow-hidden" style={PANEL}>
+    <div className="rounded-2xl overflow-hidden max-h-[75vh] overflow-y-auto custom-scrollbar" style={PANEL}>
       {/* header */}
       <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid #0f2744', background: ok ? 'rgba(16,185,129,0.06)' : 'rgba(245,158,11,0.06)' }}>
         <div className="flex items-center gap-2">
@@ -164,7 +165,7 @@ function ZGPlayerPanel({ dashboard }) {
   const acts  = (dashboard.recentActivity || []).slice(0, 4);
 
   return (
-    <div className="rounded-2xl overflow-hidden flex flex-col" style={PANEL}>
+    <div className="rounded-2xl overflow-hidden flex flex-col max-h-[75vh] overflow-y-auto custom-scrollbar" style={PANEL}>
 
       {/* ── Trust Score ── */}
       <div className="px-4 py-3" style={{ background: cfg.bg, borderBottom: '1px solid #0f2744', boxShadow: cfg.glow }}>
@@ -333,20 +334,23 @@ function NFTPassInline({ walletAddress }) {
         />
       )}
       <div
-        className="w-full rounded-xl px-4 py-3 flex items-center justify-between"
+        className="w-full rounded-xl px-4 py-3 flex items-center justify-between transition-all duration-300"
         style={{
-          background: hasNFT ? 'rgba(22,101,52,0.3)' : 'rgba(120,53,15,0.25)',
-          border: `2px solid ${hasNFT ? '#22c55e' : '#f97316'}`,
-          boxShadow: hasNFT ? '0 0 12px rgba(34,197,94,0.2)' : '0 0 12px rgba(249,115,22,0.2)',
+          background: hasNFT ? 'rgba(5, 40, 20, 0.85)' : 'rgba(40, 20, 5, 0.85)',
+          border: `3px solid ${hasNFT ? '#22c55e' : '#f97316'}`,
+          boxShadow: hasNFT 
+            ? '0 0 20px rgba(34, 197, 94, 0.3), inset 0 0 10px rgba(34, 197, 94, 0.1)' 
+            : '0 0 20px rgba(249, 115, 22, 0.3), inset 0 0 10px rgba(249, 115, 22, 0.1)',
+          backdropFilter: 'blur(16px)',
         }}
       >
         <div className="flex items-center gap-3">
-          <span className="text-xl">{hasNFT ? '🎫' : '🔒'}</span>
+          <span className="text-2xl drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">{hasNFT ? '🎫' : '🔒'}</span>
           <div>
-            <p className="text-xs font-pixel font-bold" style={{ color: hasNFT ? '#22c55e' : '#f97316' }}>
+            <p className="text-[11px] font-pixel font-bold mb-1" style={{ color: hasNFT ? '#4ade80' : '#fb923c' }}>
               ZERO DASH PASS
             </p>
-            <p className="text-xs font-pixel text-gray-400">
+            <p className="text-[9px] font-pixel text-white/90 leading-tight">
               {hasNFT ? 'Active — special levels & rewards unlocked' : 'Mint to unlock exclusive content'}
             </p>
           </div>
@@ -372,7 +376,7 @@ function NFTPassInline({ walletAddress }) {
 
 // WRAP GameRoot CONTENT IN A NEW COMPONENT
 function GameRootContent({ privyEnabled }) {
-  const { showToast } = useBlockchainToast();
+  const { showToast, clearToasts } = useBlockchainToast();
 
   const {
     walletAddress,
@@ -458,10 +462,13 @@ function GameRootContent({ privyEnabled }) {
       if (!storedWalletAddress) return;
       const response = await fetch(`${BACKEND_URL}/player/leaderboard?limit=1000`);
       if (!response.ok) return;
-      const leaderboard = await response.json();
-      const playerIndex = leaderboard.findIndex(
-        player => player.walletAddress.toLowerCase() === storedWalletAddress.toLowerCase()
+      const data = await response.json();
+      const leaderboardArray = Array.isArray(data) ? data : (data.leaderboard || []);
+      
+      const playerIndex = leaderboardArray.findIndex(
+        player => player.walletAddress?.toLowerCase() === storedWalletAddress.toLowerCase()
       );
+      
       if (playerIndex !== -1) {
         setPlayerStats(prev => ({ ...prev, rank: playerIndex + 1 }));
       }
@@ -552,8 +559,8 @@ function GameRootContent({ privyEnabled }) {
     } catch {}
     setPrivyWalletAddress(null);
     setCurrentScreen('splash');
-    setShowLeaderboard(false);
     setStartGameError(null);
+    clearToasts();
   };
 
   /**
@@ -664,56 +671,15 @@ function GameRootContent({ privyEnabled }) {
   };
 
   return (
-    <div className={`relative w-full ${currentScreen === 'splash' ? 'min-h-screen overflow-y-auto' : 'h-screen overflow-hidden'}`}>
-      {currentScreen !== 'splash' && (
-        <>
-          <HomeBackground />
-          <Particles />
-        </>
+    <div className={`relative w-full ${currentScreen === 'game' ? 'h-screen overflow-hidden' : 'min-h-screen overflow-y-auto'}`}>
+      <HomeBackground />
+      {currentScreen === 'menu' && (
+        <Particles />
       )}
       <BackgroundMusic isPlaying={currentScreen !== 'game'} />
 
 
-      {(isConnected || privyWalletAddress) && currentScreen !== 'splash' && (
-        <div className="fixed top-5 right-5 z-[1000] flex items-center gap-2 transition-all duration-400 opacity-100 translate-y-0">
-          <div
-            className="px-5 py-3 text-xs font-bold cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95"
-            title="Click to copy address"
-            onClick={() => {
-              const fullAddress = walletAddress || privyWalletAddress;
-              if (fullAddress) {
-                navigator.clipboard.writeText(fullAddress);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1500);
-              }
-            }}
-            style={{
-              background: 'linear-gradient(135deg, #0A1628 0%, #1a2d4d 100%)',
-              border: '4px solid #ffd700',
-              color: '#ffd700',
-              textShadow: '2px 2px 0 rgba(0, 0, 0, 0.8)',
-              boxShadow: '0 4px 0 #f59e0b, 0 8px 20px rgba(255, 215, 0, 0.4)',
-              imageRendering: 'pixelated',
-            }}
-          >
-            {copied ? 'Copied!' : (truncatedAddress || `${privyWalletAddress?.slice(0, 6)}...${privyWalletAddress?.slice(-4)}`)}
-          </div>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-3 text-xs font-pixel font-bold cursor-pointer transition-all duration-200 hover:scale-105 active:scale-95"
-            style={{
-              background: 'linear-gradient(135deg, #0A1628 0%, #1a2d4d 100%)',
-              border: '4px solid #ffd700',
-              color: '#ffd700',
-              textShadow: '2px 2px 0 rgba(0, 0, 0, 0.8)',
-              boxShadow: '0 4px 0 #f59e0b, 0 8px 20px rgba(255, 215, 0, 0.4)',
-              imageRendering: 'pixelated',
-            }}
-          >
-            LOGOUT
-          </button>
-        </div>
-      )}
+      {/* Removed redundant fixed logout button - handled by LandingPage header */}
 
       {currentScreen === 'splash' && isJwtBootstrapping && (
         <div className="fixed inset-0 flex items-center justify-center p-5">
@@ -726,95 +692,106 @@ function GameRootContent({ privyEnabled }) {
         </div>
       )}
 
-      {currentScreen === 'splash' && !isJwtBootstrapping && (
-        <LandingPage onPlayNow={() => setShowPrivyLogin(true)} />
-      )}
-
-      {currentScreen === 'menu' && !showLeaderboard && (
-        <>
-          {/* ── LEFT PANEL — 0G Network + NFT Pass ── */}
-          <div className="hidden lg:flex fixed left-5 top-1/2 -translate-y-1/2 z-[100] flex-col gap-3" style={{ width: 270 }}>
-            <ZGNetworkPanel network={zgNetwork} />
-            <NFTPassInline walletAddress={walletAddress || privyWalletAddress} />
-          </div>
-
-          {/* ── CENTER — Main actions ── */}
-          <div className="fixed inset-0 flex items-center justify-center z-[100] pointer-events-none">
-            <div className="flex flex-col items-center gap-4 fade-in pointer-events-auto" style={{ width: 320 }}>
-              <h2
-                className="text-5xl font-pixel text-zerion-yellow"
-                style={{ textShadow: '4px 4px 0 rgba(0,0,0,0.9), 0 0 40px rgba(255,215,0,0.7)' }}
-              >
-                READY?
-              </h2>
-
-              <button
-                onClick={handleStartGame}
-                disabled={isStartingGame}
-                className="pixel-button-primary w-full text-lg"
-                style={{ opacity: isStartingGame ? 0.7 : 1 }}
-              >
-                {isStartingGame ? '🔐 Authenticating...' : '🎮 START GAME'}
-              </button>
-
-              {startGameError && (
-                <p className="text-xs font-pixel text-red-400 text-center">⚠️ {startGameError}</p>
-              )}
-
-              <button onClick={handleOpenLeaderboard} className="pixel-button-secondary w-full">
-                🏆 LEADERBOARD
-              </button>
-
-              {/* Stats */}
-              <div className="grid grid-cols-3 gap-2 w-full">
-                {[
-                  { label: 'BEST',  value: playerStats.bestScore  > 0 ? playerStats.bestScore.toLocaleString()  : '0' },
-                  { label: 'COINS', value: playerStats.totalCoins > 0 ? playerStats.totalCoins.toLocaleString() : '0' },
-                  { label: 'RANK',  value: playerStats.rank > 0 ? `#${playerStats.rank}` : '—' },
-                ].map(({ label, value }) => (
-                  <div
-                    key={label}
-                    className="rounded-xl p-3 text-center"
-                    style={{ background: 'rgba(5,15,30,0.8)', border: '2px solid #0f2744', backdropFilter: 'blur(8px)' }}
-                  >
-                    <p className="font-pixel text-gray-500 mb-1" style={{ fontSize: 10 }}>{label}</p>
-                    {statsLoading
-                      ? <div className="w-4 h-4 mx-auto border-2 border-zerion-yellow border-t-transparent rounded-full animate-spin" />
-                      : <p className="font-pixel font-bold text-zerion-yellow" style={{ fontSize: 20 }}>{value}</p>
-                    }
-                  </div>
-                ))}
-              </div>
-
-              <button
-                onClick={() => { fetchPlayerStats(); fetchPlayerRank(); fetch0GData(walletAddress || privyWalletAddress); }}
-                className="font-pixel text-gray-600 hover:text-zerion-yellow transition-colors"
-                style={{ fontSize: 10 }}
-              >
-                🔄 Refresh
-              </button>
-
-              {/* Mobile-only: NFT Pass */}
-              <div className="lg:hidden w-full">
+      {(!isJwtBootstrapping && (currentScreen === 'splash' || currentScreen === 'menu')) && (
+        <LandingPage 
+          onPlayNow={() => setShowPrivyLogin(true)} 
+          onLogout={handleLogout}
+          isLoggedIn={currentScreen === 'menu'}
+          heroOverride={currentScreen === 'menu' && !showLeaderboard ? (
+            <div className="relative min-h-[90vh] w-full flex items-center justify-center">
+              {/* ── LEFT PANEL — 0G Network + NFT Pass ── */}
+              <div className="hidden lg:flex absolute left-5 top-1/2 -translate-y-1/2 z-[100] flex-col gap-3" style={{ width: 270 }}>
+                <ZGNetworkPanel network={zgNetwork} />
                 <NFTPassInline walletAddress={walletAddress || privyWalletAddress} />
               </div>
-            </div>
-          </div>
 
-          {/* ── RIGHT PANEL — 0G Player data ── */}
-          <div className="hidden lg:block fixed right-5 top-1/2 -translate-y-1/2 z-[100]" style={{ width: 280 }}>
-            {zgDashboard
-              ? <ZGPlayerPanel dashboard={zgDashboard} />
-              : (
-                <div className="rounded-2xl p-5 text-center" style={{ background: 'rgba(5,15,30,0.85)', border: '2px solid #0f2744', backdropFilter: 'blur(12px)' }}>
-                  <div className="w-8 h-8 mx-auto mb-3 border-2 border-zerion-yellow border-t-transparent rounded-full animate-spin" />
-                  <p className="font-pixel text-gray-600" style={{ fontSize: 11 }}>Loading your 0G data…</p>
+              {/* ── CENTER — Main actions ── */}
+              <div className="flex flex-col items-center gap-4 fade-in pointer-events-auto" style={{ width: 320 }}>
+                <h2
+                  className="text-5xl font-pixel text-zerion-yellow"
+                  style={{ textShadow: '4px 4px 0 rgba(0,0,0,0.9), 0 0 40px rgba(255,215,0,0.7)' }}
+                >
+                  READY?
+                </h2>
+
+                <button
+                  onClick={handleStartGame}
+                  disabled={isStartingGame}
+                  className="btn-gold w-full flex justify-center items-center gap-2"
+                  style={{ opacity: isStartingGame ? 0.7 : 1 }}
+                >
+                  {isStartingGame ? '🔐 Authenticating...' : (
+                    <>
+                      <Gamepad2 size={20} />
+                      START GAME
+                    </>
+                  )}
+                </button>
+
+                {startGameError && (
+                  <p className="text-xs font-pixel text-red-400 text-center">⚠️ {startGameError}</p>
+                )}
+
+                <button 
+                  onClick={handleOpenLeaderboard} 
+                  className="btn-outline w-full flex justify-center items-center gap-2"
+                >
+                  <Trophy size={20} className="text-gold" />
+                  LEADERBOARD
+                </button>
+
+                {/* Stats */}
+                <div className="grid grid-cols-3 gap-2 w-full">
+                  {[
+                    { label: 'BEST',  value: playerStats.bestScore  > 0 ? playerStats.bestScore.toLocaleString()  : '0' },
+                    { label: 'COINS', value: playerStats.totalCoins > 0 ? playerStats.totalCoins.toLocaleString() : '0' },
+                    { label: 'RANK',  value: playerStats.rank > 0 ? `#${playerStats.rank}` : '—' },
+                  ].map(({ label, value }) => (
+                    <div
+                      key={label}
+                      className="rounded-xl p-3 text-center"
+                      style={{ background: 'rgba(5,15,30,0.8)', border: '2px solid #0f2744', backdropFilter: 'blur(8px)' }}
+                    >
+                      <p className="font-pixel text-gray-500 mb-1" style={{ fontSize: 10 }}>{label}</p>
+                      {statsLoading
+                        ? <div className="w-4 h-4 mx-auto border-2 border-zerion-yellow border-t-transparent rounded-full animate-spin" />
+                        : <p className="font-pixel font-bold text-zerion-yellow" style={{ fontSize: 20 }}>{value}</p>
+                      }
+                    </div>
+                  ))}
                 </div>
-              )
-            }
-          </div>
-        </>
+
+                <button
+                  onClick={() => { fetchPlayerStats(); fetchPlayerRank(); fetch0GData(walletAddress || privyWalletAddress); }}
+                  className="font-pixel text-zerion-blue-light hover:text-zerion-yellow transition-all duration-200 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zerion-blue-dark/50 border border-zerion-blue-light/30 hover:border-zerion-yellow/50 mt-2"
+                  style={{ fontSize: 10 }}
+                >
+                  🔄 Refresh Stats
+                </button>
+
+                {/* Mobile-only: NFT Pass */}
+                <div className="lg:hidden w-full">
+                  <NFTPassInline walletAddress={walletAddress || privyWalletAddress} />
+                </div>
+              </div>
+
+              {/* ── RIGHT PANEL — 0G Player data ── */}
+              <div className="hidden lg:block absolute right-5 top-1/2 -translate-y-1/2 z-[100]" style={{ width: 280 }}>
+                {zgDashboard
+                  ? <ZGPlayerPanel dashboard={zgDashboard} />
+                  : (
+                    <div className="rounded-2xl p-5 text-center" style={{ background: 'rgba(5,15,30,0.85)', border: '2px solid #0f2744', backdropFilter: 'blur(12px)' }}>
+                      <div className="w-8 h-8 mx-auto mb-3 border-2 border-zerion-yellow border-t-transparent rounded-full animate-spin" />
+                      <p className="font-pixel text-gray-600" style={{ fontSize: 11 }}>Loading your 0G data…</p>
+                    </div>
+                  )
+                }
+              </div>
+            </div>
+          ) : null}
+        />
       )}
+
 
       {currentScreen === 'game' && (
         <>
@@ -829,7 +806,21 @@ function GameRootContent({ privyEnabled }) {
       {import.meta.env.DEV && currentScreen !== 'splash' && (
         <div className="fixed bottom-2 left-2 text-[10px] sm:text-xs font-mono bg-black/85 border border-white/10 p-3 rounded-lg z-[9999] shadow-2xl backdrop-blur-md text-white/80">
           <div>Screen: {currentScreen}</div>
-          <div>Wallet: {isConnected ? '✅' : '❌'} {truncatedAddress || 'Not connected'}</div>
+          <div 
+            className="cursor-pointer hover:text-white transition-colors flex items-center gap-2"
+            title="Click to copy full address"
+            onClick={() => {
+              const addr = walletAddress || privyWalletAddress || localStorage.getItem('walletAddress');
+              if (addr) {
+                navigator.clipboard.writeText(addr);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }
+            }}
+          >
+            Wallet: {isConnected ? '✅' : '❌'} {truncatedAddress || 'Not connected'}
+            {copied && <span className="text-green-400 text-[9px] font-bold animate-pulse">COPIED!</span>}
+          </div>
           <div>Stats: Best={playerStats.bestScore} Coins={playerStats.totalCoins} Rank={playerStats.rank || '-'}</div>
           <div>0G Net: {zgNetwork ? zgNetwork.overall : 'none'} | Dashboard: {zgDashboard ? '✅' : 'none'}</div>
         </div>
