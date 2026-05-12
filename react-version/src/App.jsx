@@ -16,7 +16,6 @@ import LandingPage from './components/LandingPage';
 import { Gamepad2, Trophy } from 'lucide-react';
 
 import desktopBg from './assets/bg.png';
-import backgroundVideo from './assets/bkg.mp4';
 
 // const BACKEND_URL = import.meta.env.VITE_BACKEND_URL;
 
@@ -28,16 +27,11 @@ const BACKEND_URL =
 function HomeBackground() {
   return (
     <>
-      <video
-        autoPlay
-        loop
-        muted
-        playsInline
-        className="fixed inset-0 w-full h-full object-cover -z-20"
-        poster={desktopBg}
-      >
-        <source src={backgroundVideo} type="video/mp4" />
-      </video>
+      <div
+        aria-hidden="true"
+        className="fixed inset-0 -z-20 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: `url(${desktopBg})` }}
+      />
       <div
         aria-hidden="true"
         className="fixed inset-0 -z-10 bg-gradient-to-b from-black/35 via-black/55 to-black/80"
@@ -859,4 +853,3 @@ function App({ privyEnabled = true }) {
 }
 
 export default App;
-
