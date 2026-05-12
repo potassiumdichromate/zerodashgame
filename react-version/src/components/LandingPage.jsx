@@ -459,19 +459,18 @@ export default function LandingPage({ onPlayNow, onLogout, isLoggedIn, heroOverr
               muted 
               loop 
               playsInline 
-              className="absolute inset-0 w-full h-full object-cover object-bottom"
+              className="absolute inset-0 z-0 w-full h-full object-cover object-bottom"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-background/90 via-background/20 to-background/80" />
-            <div className="absolute inset-0 flex items-center justify-center sm:justify-end p-8 sm:p-16">
-              <div className="max-w-md text-center sm:text-right space-y-6">
-                <h2 className="hidden sm:block font-pixel text-2xl sm:text-3xl lg:text-4xl uppercase mb-6">
+            <div className="absolute inset-0 z-[1] flex items-end justify-end p-0">
+              <div className="flex w-auto max-w-xl min-w-[260px] flex-col items-end pl-5 pr-1.5 pb-1 pt-4 sm:pl-8 sm:pr-2 sm:pb-1.5 sm:pt-6 text-right gap-4 sm:gap-5 text-white">
+                <h2 className="hidden sm:block font-pixel text-2xl sm:text-3xl lg:text-4xl uppercase drop-shadow-md">
                   The Adventure<br />is on <span className="text-gold"><ZeroGLogo className="h-8 sm:h-10 lg:h-12" /></span>.
                 </h2>
-                <p className="hidden sm:block heading-section text-sm tracking-wider">Risk Nothing.<br />Earn Everything.</p>
+                <p className="hidden sm:block heading-section text-sm tracking-wider text-white/90 drop-shadow">Risk Nothing.<br />Earn Everything.</p>
                 {isLoggedIn ? (
-                  <button onClick={onLogout} className="btn-gold mx-auto sm:ml-auto sm:mr-0">LOGOUT</button>
+                  <button type="button" onClick={onLogout} className="btn-gold">LOGOUT</button>
                 ) : (
-                  <button onClick={onPlayNow} className="btn-gold mx-auto sm:ml-auto sm:mr-0">CONNECT WALLET <Zap size={16} fill="currentColor" /></button>
+                  <button type="button" onClick={onPlayNow} className="btn-gold">CONNECT WALLET <Zap size={16} fill="currentColor" /></button>
                 )}
               </div>
             </div>
