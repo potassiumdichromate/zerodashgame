@@ -505,7 +505,7 @@ export default function LandingPage({ onPlayNow, onLogout, isLoggedIn, heroOverr
             <img src={kultLogo} alt="Kult x 0G" className="h-12 w-auto opacity-80 hover:opacity-100 transition-opacity" />
           </div>
         </div>
-        <p className="text-center text-xs text-muted-foreground mt-6">© 2024 Zero Dash. All rights reserved.</p>
+        <p className="text-center text-xs text-muted-foreground mt-6">© 2026 Zero Dash by kult games. All rights reserved.</p>
       </footer>
     </div>
   );
