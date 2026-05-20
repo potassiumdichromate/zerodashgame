@@ -6,6 +6,46 @@ const DEFAULT_EXPLORER = (
 ).replace(/\/+$/, '');
 const REFRESH_INTERVAL = 240000; // 4 minutes (240 seconds)
 
+function extractStatsFromBinarySave(saveData) {
+  if (!saveData || typeof saveData !== 'object') {
+    return null;
+  }
+
+  const coins = Number(saveData.coins ?? saveData.primaryValue);
+  const bestScore = Number(
+    saveData.highScore ?? saveData.bestScore ?? saveData.secondaryValue
+  );
+
+  if (!Number.isFinite(coins) && !Number.isFinite(bestScore)) {
+    return null;
+  }
+
+  return {
+    totalCoins: Number.isFinite(coins) ? coins : 0,
+    bestScore: Number.isFinite(bestScore) ? bestScore : 0,
+  };
+}
+
+function getCachedBinaryStats() {
+  const inMemorySave = window.zeroDashBinarySave?.data;
+  const inMemoryStats = extractStatsFromBinarySave(inMemorySave);
+
+  if (inMemoryStats) {
+    return inMemoryStats;
+  }
+
+  try {
+    const rawCachedSave = localStorage.getItem('zgLoadedSaveJson');
+    if (!rawCachedSave) {
+      return null;
+    }
+
+    return extractStatsFromBinarySave(JSON.parse(rawCachedSave));
+  } catch {
+    return null;
+  }
+}
+
 /**
  * UserProfileSidebar Component
  * Displays current user's stats and progress during gameplay
@@ -46,12 +86,15 @@ export default function UserProfileSidebar({ isVisible, walletAddress }) {
       }
 
       const data = await response.json();
+      const binaryStats = getCachedBinaryStats();
+      const resolvedBestScore = binaryStats?.bestScore ?? Number(data.highScore ?? 0);
+      const resolvedTotalCoins = binaryStats?.totalCoins ?? Number(data.coins ?? 0);
       
       // Transform backend data to component format
       const transformedStats = {
         // Direct mappings from backend
-        bestScore: data.highScore || 0,
-        totalCoins: data.coins || 0,
+        bestScore: Number.isFinite(resolvedBestScore) ? resolvedBestScore : 0,
+        totalCoins: Number.isFinite(resolvedTotalCoins) ? resolvedTotalCoins : 0,
         walletAddress: data.walletAddress,
         zerogBacked: typeof data?.zerogTrust?.saveBackedBy0g === 'boolean'
           ? data.zerogTrust.saveBackedBy0g
@@ -78,12 +121,12 @@ export default function UserProfileSidebar({ isVisible, walletAddress }) {
         lastActive: data.updatedAt ? formatLastActive(data.updatedAt) : 'Now',
         
         // Calculated/derived stats (you can add these to backend later)
-        gamesPlayed: Math.floor(data.highScore / 100) || 1, // Rough estimate
-        averageScore: Math.floor(data.highScore * 0.7) || 0, // Rough estimate
+        gamesPlayed: Math.max(1, Math.floor(resolvedBestScore / 100)), // Rough estimate
+        averageScore: Math.floor(resolvedBestScore * 0.7) || 0, // Rough estimate
         
         // Placeholder for future backend fields
-        level: calculateLevel(data.highScore),
-        xp: data.coins % 1000, // Use coins as temp XP
+        level: calculateLevel(resolvedBestScore),
+        xp: resolvedTotalCoins % 1000, // Use coins as temp XP
         xpToNextLevel: 1000,
         rank: 0, // Will be calculated from leaderboard
         achievements: data.characters?.unlocked?.length || 0,
