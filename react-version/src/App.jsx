@@ -76,6 +76,24 @@ function PipelineDot({ done, label, explorerUrl, pending }) {
     : el;
 }
 
+function extractStatsFromBinarySave(saveData) {
+  if (!saveData || typeof saveData !== 'object') {
+    return null;
+  }
+
+  const coins = Number(saveData.coins ?? saveData.primaryValue);
+  const bestScore = Number(saveData.highScore ?? saveData.bestScore ?? saveData.secondaryValue);
+
+  if (!Number.isFinite(coins) && !Number.isFinite(bestScore)) {
+    return null;
+  }
+
+  return {
+    totalCoins: Number.isFinite(coins) ? coins : 0,
+    bestScore: Number.isFinite(bestScore) ? bestScore : 0,
+  };
+}
+
 /* ── LEFT PANEL — 0G Network ─────────────────────────────────────────── */
 function ZGNetworkPanel({ network }) {
   const PANEL = { background: 'rgba(5,15,30,0.85)', border: '2px solid #0f2744', backdropFilter: 'blur(12px)' };
@@ -489,7 +507,7 @@ function GameRootContent({ privyEnabled }) {
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [startGameError, setStartGameError] = useState(null);
 
-  const [playerStats, setPlayerStats] = useState({ bestScore: 0, totalCoins: 0, rank: 0 });
+  const [playerStats, setPlayerStats] = useState({ bestScore: 0, totalCoins: 0 });
   const [statsLoading, setStatsLoading] = useState(false);
 
   // 0G data
@@ -542,6 +560,11 @@ function GameRootContent({ privyEnabled }) {
         const decodedSave = await deserializePlayerBinaryResponse(binaryRes);
         setZgLoadedSave(decodedSave);
         window.zeroDashBinarySave = decodedSave;
+
+        const binaryStats = extractStatsFromBinarySave(decodedSave.data);
+        if (binaryStats) {
+          setPlayerStats(binaryStats);
+        }
 
         console.group('[ZeroDash] /player/load/binary');
         console.log('decodedSave', decodedSave);
@@ -603,7 +626,6 @@ function GameRootContent({ privyEnabled }) {
         localStorage.getItem('walletAddress');
 
       fetchPlayerStats();
-      fetchPlayerRank();
       fetch0GData(addr);
     }
   }, [currentScreen, walletAddress, privyWalletAddress]);
@@ -620,7 +642,13 @@ function GameRootContent({ privyEnabled }) {
       });
       if (!response.ok) throw new Error('Failed to fetch player stats');
       const data = await response.json();
-      setPlayerStats({ bestScore: data.highScore || 0, totalCoins: data.coins || 0, rank: 0 });
+      const binaryStats = extractStatsFromBinarySave(window.zeroDashBinarySave?.data);
+      setPlayerStats(
+        binaryStats || {
+          bestScore: data.highScore || 0,
+          totalCoins: data.coins || 0,
+        }
+      );
 
       // Show toast if blockchain session was recorded
       if (data.blockchain?.txHash) {
@@ -633,30 +661,9 @@ function GameRootContent({ privyEnabled }) {
       }
     } catch (err) {
       console.error('Error fetching player stats:', err);
-      setPlayerStats({ bestScore: 0, totalCoins: 0, rank: 0 });
+      setPlayerStats({ bestScore: 0, totalCoins: 0 });
     } finally {
       setStatsLoading(false);
-    }
-  };
-
-  const fetchPlayerRank = async () => {
-    try {
-      const storedWalletAddress = localStorage.getItem('walletAddress');
-      if (!storedWalletAddress) return;
-      const response = await fetch(`${BACKEND_URL}/player/leaderboard?limit=1000`);
-      if (!response.ok) return;
-      const data = await response.json();
-      const leaderboardArray = Array.isArray(data) ? data : (data.leaderboard || []);
-      
-      const playerIndex = leaderboardArray.findIndex(
-        player => player.walletAddress?.toLowerCase() === storedWalletAddress.toLowerCase()
-      );
-      
-      if (playerIndex !== -1) {
-        setPlayerStats(prev => ({ ...prev, rank: playerIndex + 1 }));
-      }
-    } catch (err) {
-      console.error('Error fetching player rank:', err);
     }
   };
 
@@ -838,7 +845,6 @@ function GameRootContent({ privyEnabled }) {
   const handleBackToMenu = () => {
     setCurrentScreen('menu');
     fetchPlayerStats();
-    fetchPlayerRank();
   };
 
   const handleOpenLeaderboard = () => {
@@ -920,11 +926,10 @@ function GameRootContent({ privyEnabled }) {
                 </button>
 
                 {/* Stats */}
-                <div className="grid grid-cols-3 gap-2 w-full">
+                <div className="grid grid-cols-2 gap-2 w-full">
                   {[
                     { label: 'BEST',  value: playerStats.bestScore  > 0 ? playerStats.bestScore.toLocaleString()  : '0' },
                     { label: 'COINS', value: playerStats.totalCoins > 0 ? playerStats.totalCoins.toLocaleString() : '0' },
-                    { label: 'RANK',  value: playerStats.rank > 0 ? `#${playerStats.rank}` : '—' },
                   ].map(({ label, value }) => (
                     <div
                       key={label}
@@ -941,7 +946,7 @@ function GameRootContent({ privyEnabled }) {
                 </div>
 
                 <button
-                  onClick={() => { fetchPlayerStats(); fetchPlayerRank(); fetch0GData(walletAddress || privyWalletAddress); }}
+                  onClick={() => { fetchPlayerStats(); fetch0GData(walletAddress || privyWalletAddress); }}
                   className="font-pixel text-zerion-blue-light hover:text-zerion-yellow transition-all duration-200 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-zerion-blue-dark/50 border border-zerion-blue-light/30 hover:border-zerion-yellow/50 mt-2"
                   style={{ fontSize: 10 }}
                 >
@@ -997,7 +1002,7 @@ function GameRootContent({ privyEnabled }) {
             Wallet: {isConnected ? '✅' : '❌'} {truncatedAddress || 'Not connected'}
             {copied && <span className="text-green-400 text-[9px] font-bold animate-pulse">COPIED!</span>}
           </div>
-          <div>Stats: Best={playerStats.bestScore} Coins={playerStats.totalCoins} Rank={playerStats.rank || '-'}</div>
+          <div>Stats: Best={playerStats.bestScore} Coins={playerStats.totalCoins}</div>
           <div>0G Net: {zgNetwork ? zgNetwork.overall : 'none'} | Dashboard: {zgDashboard ? '✅' : 'none'} | Binary: {zgLoadedSave ? zgLoadedSave.format : (zgLoadedSaveError ? 'error' : 'none')}</div>
         </div>
       )}

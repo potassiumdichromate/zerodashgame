@@ -68,18 +68,24 @@ function inspectOpaqueUnityBinary(bytes) {
   const trailingZeros = trailingBytes.every((byte) => byte === 0);
 
   if (magic === 'ZDSV') {
+    const coins = readUint32LE(bytes, 5);
+    const highScore = readUint32LE(bytes, 9);
+
     return {
       kind: 'unity-custom-save-header',
       magic,
       versionByte,
-      primaryValue: readUint32LE(bytes, 5),
-      secondaryValue: readUint32LE(bytes, 9),
+      primaryValue: coins,
+      secondaryValue: highScore,
+      coins,
+      highScore,
+      bestScore: highScore,
       trailingZeros,
       byteLength: bytes.byteLength,
       interpretation:
         'This looks like a tiny custom Unity save header, not a full gameplay snapshot.',
       likelyMeaning:
-        'Possible layout: magic "ZDSV", serializer/schema byte 1, header value 4, state/count value 3, then empty/default zero-filled fields.',
+        'Possible layout: magic "ZDSV", serializer/schema byte 1, coins value, best-score value, then empty/default zero-filled fields.',
       caution:
         'Field names are inferred from byte layout, not from the original Unity serializer.',
     };
