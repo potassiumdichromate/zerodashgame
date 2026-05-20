@@ -13,6 +13,7 @@ import Login from './components/Login';
 import LoginModal from './components/LoginModal';
 import BackgroundMusic from './components/BackgroundMusic';
 import LandingPage from './components/LandingPage';
+import { deserializePlayerBinaryResponse } from './lib/zerogBinarySave';
 import { Gamepad2, Trophy } from 'lucide-react';
 
 import desktopBg from './assets/bg.png';
@@ -141,52 +142,68 @@ function ZGNetworkPanel({ network }) {
 }
 
 /* ── RIGHT PANEL — Player 0G data ────────────────────────────────────── */
-function ZGPlayerPanel({ dashboard }) {
+function ZGPlayerPanel({ dashboard, loadedSave, loadError, isLoading }) {
   const PANEL = { background: 'rgba(5,15,30,0.85)', border: '2px solid #0f2744', backdropFilter: 'blur(12px)' };
 
-  if (!dashboard) return (
+  if (!dashboard && !loadedSave && !loadError && isLoading) return (
     <div className="rounded-2xl p-4" style={PANEL}>
       <p className="text-xs font-pixel text-gray-600 text-center">Loading your 0G data…</p>
     </div>
   );
 
-  const trust = dashboard.trustScore || {};
+  if (!dashboard && !loadedSave && !loadError) return (
+    <div className="rounded-2xl p-4" style={PANEL}>
+      <p className="text-xs font-pixel text-gray-600 text-center">No 0G save data found yet.</p>
+    </div>
+  );
+
+  const trust = dashboard?.trustScore || {};
   const cfg   = TRUST_CONFIG[trust.label] || TRUST_CONFIG.UNVERIFIED;
   const bd    = trust.breakdown || {};
-  const sum   = dashboard.summary || {};
-  const ls    = dashboard.latestSave;
+  const sum   = dashboard?.summary || {};
+  const ls    = dashboard?.latestSave;
   const pipe  = ls?.pipeline || {};
-  const acts  = (dashboard.recentActivity || []).slice(0, 4);
+  const acts  = (dashboard?.recentActivity || []).slice(0, 4);
+  const saveData = loadedSave?.data && typeof loadedSave.data === 'object' ? loadedSave.data : null;
+  const saveMeta = loadedSave?.meta || {};
+  const saveCurrentCharacter = Array.isArray(saveData?.characters?.unlocked)
+    ? saveData.characters.unlocked[saveData?.characters?.currentIndex || 0]
+    : null;
+  const saveRecordedAt = saveData?.recordedAt
+    ? new Date(saveData.recordedAt).toLocaleString()
+    : '—';
 
   return (
     <div className="rounded-2xl overflow-hidden flex flex-col max-h-[75vh] overflow-y-auto custom-scrollbar" style={PANEL}>
 
       {/* ── Trust Score ── */}
-      <div className="px-4 py-3" style={{ background: cfg.bg, borderBottom: '1px solid #0f2744', boxShadow: cfg.glow }}>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-xs font-pixel font-bold text-white">TRUST SCORE</span>
-          <span className="font-pixel font-bold px-2 py-0.5 rounded-full" style={{ fontSize: 10, background: `${cfg.border}22`, border: `1px solid ${cfg.border}`, color: cfg.color }}>
-            {cfg.icon} {trust.label}
-          </span>
+      {dashboard && (
+        <div className="px-4 py-3" style={{ background: cfg.bg, borderBottom: '1px solid #0f2744', boxShadow: cfg.glow }}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-pixel font-bold text-white">TRUST SCORE</span>
+            <span className="font-pixel font-bold px-2 py-0.5 rounded-full" style={{ fontSize: 10, background: `${cfg.border}22`, border: `1px solid ${cfg.border}`, color: cfg.color }}>
+              {cfg.icon} {trust.label}
+            </span>
+          </div>
+          <div className="flex items-end gap-2 mb-2">
+            <span className="font-pixel font-bold" style={{ fontSize: 32, lineHeight: 1, color: cfg.num, textShadow: cfg.glow }}>{trust.score ?? 0}</span>
+            <span className="font-pixel text-gray-600 mb-1" style={{ fontSize: 11 }}>/100</span>
+          </div>
+          <div className="grid grid-cols-4 gap-1">
+            {[
+              { l: 'SAVES',     v: bd.totalSaves ?? sum.totalSaves ?? 0 },
+              { l: 'ANCHORED',  v: bd.anchoredSaves ?? sum.anchoredSaves ?? 0 },
+              { l: 'DA',        v: bd.finalizedSaves ?? sum.finalizedSaves ?? 0 },
+              { l: 'TEE',       v: bd.computeValidated ?? 0 },
+            ].map(({ l, v }) => (
+              <div key={l} className="text-center rounded-lg py-1.5" style={{ background: 'rgba(0,0,0,0.35)' }}>
+                <p className="font-pixel font-bold text-white" style={{ fontSize: 14 }}>{v}</p>
+                <p className="font-pixel text-gray-600" style={{ fontSize: 8 }}>{l}</p>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="flex items-end gap-2 mb-2">
-          <span className="font-pixel font-bold" style={{ fontSize: 32, lineHeight: 1, color: cfg.num, textShadow: cfg.glow }}>{trust.score ?? 0}</span>
-          <span className="font-pixel text-gray-600 mb-1" style={{ fontSize: 11 }}>/100</span>
-        </div>
-        <div className="grid grid-cols-4 gap-1">
-          {[
-            { l: 'SAVES',     v: bd.totalSaves ?? sum.totalSaves ?? 0 },
-            { l: 'ANCHORED',  v: bd.anchoredSaves ?? sum.anchoredSaves ?? 0 },
-            { l: 'DA',        v: bd.finalizedSaves ?? sum.finalizedSaves ?? 0 },
-            { l: 'TEE',       v: bd.computeValidated ?? 0 },
-          ].map(({ l, v }) => (
-            <div key={l} className="text-center rounded-lg py-1.5" style={{ background: 'rgba(0,0,0,0.35)' }}>
-              <p className="font-pixel font-bold text-white" style={{ fontSize: 14 }}>{v}</p>
-              <p className="font-pixel text-gray-600" style={{ fontSize: 8 }}>{l}</p>
-            </div>
-          ))}
-        </div>
-      </div>
+      )}
 
       {/* ── Latest Save ── */}
       {ls && (
@@ -242,6 +259,84 @@ function ZGPlayerPanel({ dashboard }) {
               </span>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── Binary Load ── */}
+      {(loadedSave || loadError) && (
+        <div className="px-4 py-3" style={{ borderBottom: acts.length > 0 ? '1px solid #0f2744' : 'none' }}>
+          <div className="flex items-center justify-between mb-2">
+            <span className="font-pixel font-bold text-white" style={{ fontSize: 11 }}>LOAD /BINARY</span>
+            <span
+              className="font-pixel font-bold px-2 py-0.5 rounded-full"
+              style={{
+                fontSize: 9,
+                background: loadError ? 'rgba(239,68,68,0.15)' : 'rgba(34,211,238,0.12)',
+                border: `1px solid ${loadError ? '#ef4444' : '#22d3ee'}`,
+                color: loadError ? '#fca5a5' : '#22d3ee',
+              }}
+            >
+              {loadError ? 'ERROR' : loadedSave?.format?.toUpperCase() || 'READY'}
+            </span>
+          </div>
+
+          {loadError ? (
+            <p className="font-pixel" style={{ fontSize: 10, color: '#fca5a5', lineHeight: 1.5 }}>{loadError}</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-4 gap-1 mb-2.5">
+                {[
+                  { l: 'BEST', v: saveData?.highScore ?? '—' },
+                  { l: 'COINS', v: saveData?.coins ?? '—' },
+                  { l: 'SAVE', v: saveMeta.saveIndex ?? '—' },
+                  { l: 'BYTES', v: saveMeta.byteLength ?? 0 },
+                ].map(({ l, v }) => (
+                  <div key={l} className="text-center rounded-lg py-1.5" style={{ background: 'rgba(0,0,0,0.35)' }}>
+                    <p className="font-pixel font-bold text-white truncate px-1" style={{ fontSize: 12 }}>{v}</p>
+                    <p className="font-pixel text-gray-600" style={{ fontSize: 8 }}>{l}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2 rounded-lg px-2 py-1" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid #1e3a5f' }}>
+                  <span className="font-pixel text-gray-600 flex-shrink-0" style={{ fontSize: 9 }}>PLAYER</span>
+                  <span className="font-mono text-gray-300 truncate" style={{ fontSize: 10 }}>{saveData?.playerName || saveData?.walletAddress || '—'}</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg px-2 py-1" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid #1e3a5f' }}>
+                  <span className="font-pixel text-gray-600 flex-shrink-0" style={{ fontSize: 9 }}>RUNNER</span>
+                  <span className="font-mono text-gray-300 truncate" style={{ fontSize: 10 }}>{saveCurrentCharacter || '—'}</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg px-2 py-1" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid #1e3a5f' }}>
+                  <span className="font-pixel text-gray-600 flex-shrink-0" style={{ fontSize: 9 }}>AT</span>
+                  <span className="font-mono text-gray-300 truncate" style={{ fontSize: 10 }}>{saveRecordedAt}</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg px-2 py-1" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid #1e3a5f' }}>
+                  <span className="font-pixel text-gray-600 flex-shrink-0" style={{ fontSize: 9 }}>DA</span>
+                  <span className="font-mono text-gray-300 truncate" style={{ fontSize: 10 }}>{saveMeta.daStatus || '—'}</span>
+                </div>
+                {saveMeta.rootHash && (
+                  <div className="flex items-center gap-2 rounded-lg px-2 py-1" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid #1e3a5f' }}>
+                    <span className="font-pixel text-gray-600 flex-shrink-0" style={{ fontSize: 9 }}>ROOT</span>
+                    <span className="font-mono text-gray-300 truncate" style={{ fontSize: 10 }}>{hx(saveMeta.rootHash, 16, 8)}</span>
+                  </div>
+                )}
+                {saveMeta.checksumSha256 && (
+                  <div className="flex items-center gap-2 rounded-lg px-2 py-1" style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid #1e3a5f' }}>
+                    <span className="font-pixel text-gray-600 flex-shrink-0" style={{ fontSize: 9 }}>SHA256</span>
+                    <span className="font-mono text-gray-300 truncate" style={{ fontSize: 10 }}>{hx(saveMeta.checksumSha256, 16, 8)}</span>
+                  </div>
+                )}
+                {!loadedSave?.ok && (
+                  <div className="rounded-lg px-2 py-2" style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.35)' }}>
+                    <p className="font-pixel text-yellow-300" style={{ fontSize: 9, lineHeight: 1.5 }}>
+                      Binary payload loaded, but it did not deserialize into JSON. Hex preview: {saveMeta.hexPreview || '—'}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -400,24 +495,99 @@ function GameRootContent({ privyEnabled }) {
   // 0G data
   const [zgNetwork, setZgNetwork] = useState(null);
   const [zgDashboard, setZgDashboard] = useState(null);
+  const [zgLoadedSave, setZgLoadedSave] = useState(null);
+  const [zgLoadedSaveError, setZgLoadedSaveError] = useState(null);
+  const [zgDataLoading, setZgDataLoading] = useState(false);
 
   const fetch0GData = async (addr) => {
+    setZgDataLoading(true);
+    setZgLoadedSaveError(null);
+
     // Always fetch public network status
     try {
       const res = await fetch(`${ZG_BACKEND}/0g/network`);
       if (res.ok) setZgNetwork(await res.json());
     } catch { /* non-fatal */ }
 
-    // Fetch dashboard if we have a JWT
     try {
-      const jwt = localStorage.getItem('zgJwt');
-      if (!jwt || !addr) return;
-      const res = await fetch(`${ZG_BACKEND}/0g/dashboard`, {
-        headers: { Authorization: `Bearer ${jwt}` },
-      });
-      if (res.ok) setZgDashboard(await res.json());
-    } catch { /* non-fatal */ }
+      if (!addr) {
+        setZgDashboard(null);
+        setZgLoadedSave(null);
+        return;
+      }
+
+      let jwt = localStorage.getItem('zgJwt');
+      if (!jwt) {
+        jwt = await doJwtAuth(addr);
+      }
+
+      const headers = { Authorization: `Bearer ${jwt}` };
+      const [dashboardRes, binaryRes] = await Promise.all([
+        fetch(`${ZG_BACKEND}/0g/dashboard`, { headers }),
+        fetch(`${ZG_BACKEND}/player/load/binary`, {
+          headers: {
+            ...headers,
+            Accept: 'application/octet-stream,application/json;q=0.9,*/*;q=0.8',
+          },
+        }),
+      ]);
+
+      if (dashboardRes.ok) {
+        setZgDashboard(await dashboardRes.json());
+      } else {
+        setZgDashboard(null);
+      }
+
+      if (binaryRes.ok) {
+        const decodedSave = await deserializePlayerBinaryResponse(binaryRes);
+        setZgLoadedSave(decodedSave);
+        window.zeroDashBinarySave = decodedSave;
+
+        if (decodedSave.data) {
+          localStorage.setItem('zgLoadedSaveJson', JSON.stringify(decodedSave.data));
+        } else {
+          localStorage.removeItem('zgLoadedSaveJson');
+        }
+
+        if (!decodedSave.ok) {
+          setZgLoadedSaveError('Binary save loaded, but the payload could not be deserialized into JSON.');
+        }
+      } else if (binaryRes.status === 404 || binaryRes.status === 204) {
+        setZgLoadedSave(null);
+        localStorage.removeItem('zgLoadedSaveJson');
+      } else {
+        let message = `Binary load failed (${binaryRes.status})`;
+        try {
+          const body = await binaryRes.json();
+          message = body?.detail || body?.message || body?.error || message;
+        } catch {
+          /* ignore parse errors */
+        }
+        setZgLoadedSave(null);
+        setZgLoadedSaveError(message);
+      }
+    } catch (err) {
+      console.warn('0G load failed:', err);
+      setZgDashboard(null);
+      setZgLoadedSave(null);
+      setZgLoadedSaveError(err?.message || 'Could not load your 0G save.');
+    } finally {
+      setZgDataLoading(false);
+    }
   };
+
+  useEffect(() => {
+    if (currentScreen === 'menu') {
+      const addr =
+        walletAddress ||
+        privyWalletAddress ||
+        localStorage.getItem('walletAddress');
+
+      fetchPlayerStats();
+      fetchPlayerRank();
+      fetch0GData(addr);
+    }
+  }, [currentScreen, walletAddress, privyWalletAddress]);
 
   const fetchPlayerStats = async () => {
     setStatsLoading(true);
@@ -470,15 +640,6 @@ function GameRootContent({ privyEnabled }) {
       console.error('Error fetching player rank:', err);
     }
   };
-
-  useEffect(() => {
-    if (currentScreen === 'menu') {
-      const addr = walletAddress || privyWalletAddress;
-      fetchPlayerStats();
-      fetchPlayerRank();
-      fetch0GData(addr);
-    }
-  }, [currentScreen]);
 
   /**
    * Auto-enter menu when JWT + source=browser is provided in the URL
@@ -548,12 +709,17 @@ function GameRootContent({ privyEnabled }) {
     localStorage.removeItem('walletAddress');
     localStorage.removeItem('privySession');
     localStorage.removeItem('zgJwt');
+    localStorage.removeItem('zgLoadedSaveJson');
+    delete window.zeroDashBinarySave;
     try {
       await privyLogout();
     } catch {}
     setPrivyWalletAddress(null);
     setCurrentScreen('splash');
     setStartGameError(null);
+    setZgDashboard(null);
+    setZgLoadedSave(null);
+    setZgLoadedSaveError(null);
     clearToasts();
   };
 
@@ -771,15 +937,12 @@ function GameRootContent({ privyEnabled }) {
 
               {/* ── RIGHT PANEL — 0G Player data ── */}
               <div className="hidden lg:block absolute right-5 top-1/2 -translate-y-1/2 z-[100]" style={{ width: 280 }}>
-                {zgDashboard
-                  ? <ZGPlayerPanel dashboard={zgDashboard} />
-                  : (
-                    <div className="rounded-2xl p-5 text-center" style={{ background: 'rgba(5,15,30,0.85)', border: '2px solid #0f2744', backdropFilter: 'blur(12px)' }}>
-                      <div className="w-8 h-8 mx-auto mb-3 border-2 border-zerion-yellow border-t-transparent rounded-full animate-spin" />
-                      <p className="font-pixel text-gray-600" style={{ fontSize: 11 }}>Loading your 0G data…</p>
-                    </div>
-                  )
-                }
+                <ZGPlayerPanel
+                  dashboard={zgDashboard}
+                  loadedSave={zgLoadedSave}
+                  loadError={zgLoadedSaveError}
+                  isLoading={zgDataLoading}
+                />
               </div>
             </div>
           ) : null}
@@ -816,7 +979,7 @@ function GameRootContent({ privyEnabled }) {
             {copied && <span className="text-green-400 text-[9px] font-bold animate-pulse">COPIED!</span>}
           </div>
           <div>Stats: Best={playerStats.bestScore} Coins={playerStats.totalCoins} Rank={playerStats.rank || '-'}</div>
-          <div>0G Net: {zgNetwork ? zgNetwork.overall : 'none'} | Dashboard: {zgDashboard ? '✅' : 'none'}</div>
+          <div>0G Net: {zgNetwork ? zgNetwork.overall : 'none'} | Dashboard: {zgDashboard ? '✅' : 'none'} | Binary: {zgLoadedSave ? zgLoadedSave.format : (zgLoadedSaveError ? 'error' : 'none')}</div>
         </div>
       )}
 
