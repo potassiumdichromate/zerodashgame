@@ -543,6 +543,15 @@ function GameRootContent({ privyEnabled }) {
         setZgLoadedSave(decodedSave);
         window.zeroDashBinarySave = decodedSave;
 
+        console.group('[ZeroDash] /player/load/binary');
+        console.log('decodedSave', decodedSave);
+        console.log('meta', decodedSave.meta);
+        console.log('format', decodedSave.format);
+        console.log('parsedData', decodedSave.data);
+        console.log('textPreview', decodedSave.textPreview);
+        console.log('rawBase64', decodedSave.rawBase64);
+        console.groupEnd();
+
         if (decodedSave.data) {
           localStorage.setItem('zgLoadedSaveJson', JSON.stringify(decodedSave.data));
         } else {
@@ -555,13 +564,23 @@ function GameRootContent({ privyEnabled }) {
       } else if (binaryRes.status === 404 || binaryRes.status === 204) {
         setZgLoadedSave(null);
         localStorage.removeItem('zgLoadedSaveJson');
+        console.warn('[ZeroDash] /player/load/binary returned no save payload', {
+          status: binaryRes.status,
+        });
       } else {
         let message = `Binary load failed (${binaryRes.status})`;
         try {
           const body = await binaryRes.json();
           message = body?.detail || body?.message || body?.error || message;
+          console.warn('[ZeroDash] /player/load/binary failed', {
+            status: binaryRes.status,
+            body,
+          });
         } catch {
           /* ignore parse errors */
+          console.warn('[ZeroDash] /player/load/binary failed', {
+            status: binaryRes.status,
+          });
         }
         setZgLoadedSave(null);
         setZgLoadedSaveError(message);
