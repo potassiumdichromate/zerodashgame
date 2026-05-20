@@ -517,6 +517,16 @@ function GameRootContent({ privyEnabled }) {
   const [zgLoadedSaveError, setZgLoadedSaveError] = useState(null);
   const [zgDataLoading, setZgDataLoading] = useState(false);
 
+  const [isMobileViewport, setIsMobileViewport] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < 768,
+  );
+
+  useEffect(() => {
+    const onResize = () => setIsMobileViewport(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   const fetch0GData = async (addr) => {
     setZgDataLoading(true);
     setZgLoadedSaveError(null);
@@ -984,8 +994,8 @@ function GameRootContent({ privyEnabled }) {
 
       <Leaderboard isOpen={showLeaderboard} onClose={handleCloseLeaderboard} />
 
-      {import.meta.env.DEV && currentScreen !== 'splash' && (
-        <div className="fixed bottom-2 left-2 text-[10px] sm:text-xs font-mono bg-black/85 border border-white/10 p-3 rounded-lg z-[9999] shadow-2xl backdrop-blur-md text-white/80">
+      {import.meta.env.DEV && currentScreen !== 'splash' && !isMobileViewport && (
+        <div className="fixed bottom-2 left-2 text-[10px] sm:text-xs font-mono bg-black/85 border border-white/10 p-3 rounded-lg z-[9999] shadow-2xl backdrop-blur-md text-white/80 hidden sm:block">
           <div>Screen: {currentScreen}</div>
           <div 
             className="cursor-pointer hover:text-white transition-colors flex items-center gap-2"

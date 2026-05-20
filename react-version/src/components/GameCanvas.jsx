@@ -514,8 +514,8 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
       {/* Unity Warning Banner */}
       <div id="unity-warning" className="fixed bottom-5 left-1/2 -translate-x-1/2 max-w-2xl z-[3000]" />
 
-      {/* Debug Info (Development Only) */}
-      {import.meta.env.DEV && isVisible && (
+      {/* Debug Info (Development Only — hidden on mobile) */}
+      {import.meta.env.DEV && isVisible && !isMobile && (
         <div className="fixed bottom-4 left-4 bg-black/80 text-white text-xs px-3 py-2 rounded font-pixel z-[9999] space-y-1">
           <div>{isMobile ? '📱 Mobile Portrait' : '💻 Desktop Landscape'} - {dimensions.width}x{dimensions.height}</div>
           <div>🎫 NFT: {hasNFT ? 'PREMIUM ✅' : 'FREE'}</div>
