@@ -26,6 +26,77 @@ function hexPreview(bytes, limit = 24) {
   ).join(' ');
 }
 
+function readUint32LE(bytes, offset) {
+  if (offset < 0 || offset + 4 > bytes.length) {
+    return null;
+  }
+
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  return view.getUint32(offset, true);
+}
+
+function asciiString(bytes, start, length) {
+  if (start < 0 || start + length > bytes.length) {
+    return null;
+  }
+
+  const chars = [];
+  for (let i = start; i < start + length; i += 1) {
+    const byte = bytes[i];
+    if (byte < 32 || byte > 126) {
+      return null;
+    }
+    chars.push(String.fromCharCode(byte));
+  }
+
+  return chars.join('');
+}
+
+function inspectOpaqueUnityBinary(bytes) {
+  const magic = asciiString(bytes, 0, Math.min(4, bytes.length));
+  const versionByte = bytes.length > 4 ? bytes[4] : null;
+  const littleEndianWords = [];
+
+  for (let offset = 5; offset + 4 <= bytes.length; offset += 4) {
+    littleEndianWords.push({
+      offset,
+      value: readUint32LE(bytes, offset),
+    });
+  }
+
+  const trailingBytes = Array.from(bytes.subarray(13));
+  const trailingZeros = trailingBytes.every((byte) => byte === 0);
+
+  if (magic === 'ZDSV') {
+    return {
+      kind: 'unity-custom-save-header',
+      magic,
+      versionByte,
+      primaryValue: readUint32LE(bytes, 5),
+      secondaryValue: readUint32LE(bytes, 9),
+      trailingZeros,
+      byteLength: bytes.byteLength,
+      interpretation:
+        'This looks like a tiny custom Unity save header, not a full gameplay snapshot.',
+      likelyMeaning:
+        'Possible layout: magic "ZDSV", serializer/schema byte 1, header value 4, state/count value 3, then empty/default zero-filled fields.',
+      caution:
+        'Field names are inferred from byte layout, not from the original Unity serializer.',
+    };
+  }
+
+  return {
+    kind: 'opaque-binary',
+    magic,
+    versionByte,
+    littleEndianWords,
+    trailingZeros,
+    byteLength: bytes.byteLength,
+    interpretation:
+      'Binary payload is not JSON. This summary is a structural inspection only.',
+  };
+}
+
 function parseBase64Json(text) {
   const compact = text.replace(/\s+/g, '');
   if (!compact || compact.length % 4 !== 0 || !/^[A-Za-z0-9+/=]+$/.test(compact)) {
@@ -66,7 +137,7 @@ export async function deserializePlayerBinaryResponse(response) {
   return {
     ok: parsed != null,
     format: parsed?.format || 'opaque-binary',
-    data: parsed?.data || null,
+    data: parsed?.data || inspectOpaqueUnityBinary(bytes),
     textPreview: (parsed?.text || text || '').slice(0, 240),
     rawBase64: toBase64(bytes),
     meta: {
