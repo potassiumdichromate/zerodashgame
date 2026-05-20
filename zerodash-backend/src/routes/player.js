@@ -1,5 +1,6 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
+const { createHash } = require('crypto');
 const Player = require('../models/Player');
 const zerogDAService = require('../services/zerogDAService');
 const { walletFromBrowserJwt } = require('../services/privyWallet');
@@ -7,6 +8,9 @@ const { walletBearerRequired } = require('../middleware/walletBearer');
 const { evaluateDashGameSync } = require('../services/dashAntiCheatService');
 const { generateDashLeaderboardAiComment } = require('../services/zdashLeaderboardAi');
 const zdashBlockchain = require('../services/zdashBlockchainService');
+const {
+  syncPlayerFromUnityBinarySave,
+} = require('../services/unityBinarySaveService');
 
 const router = express.Router();
 
@@ -15,6 +19,18 @@ const aiCommentLimiter = rateLimit({
   max: Number(process.env.ZD_LEADERBOARD_AI_RATE_LIMIT || 45),
   standardHeaders: true,
   legacyHeaders: false,
+});
+
+const binarySaveLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: Number(process.env.ZD_BINARY_SAVE_RATE_LIMIT || 20),
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const binarySaveBodyParser = express.raw({
+  type: () => true,
+  limit: process.env.ZD_BINARY_SAVE_MAX_BYTES || '256kb',
 });
 
 const queueDA = (trigger, eventType, playerId, walletAddress, submitFn) => {
@@ -143,6 +159,77 @@ router.get('/profile', walletBearerRequired, async (req, res) => {
     return res.status(500).json({ message: 'Server error' });
   }
 });
+
+router.post(
+  '/save/binary',
+  binarySaveLimiter,
+  walletBearerRequired,
+  binarySaveBodyParser,
+  async (req, res) => {
+    try {
+      const walletAddress = req.walletAddress;
+      const binary =
+        Buffer.isBuffer(req.body)
+          ? req.body
+          : req.body instanceof Uint8Array
+            ? Buffer.from(req.body.buffer, req.body.byteOffset, req.body.byteLength)
+            : Buffer.alloc(0);
+
+      if (!binary.length) {
+        return res.status(400).json({
+          success: false,
+          message: 'Binary save payload required',
+        });
+      }
+
+      const checksumSha256 = createHash('sha256').update(binary).digest('hex');
+
+      res.set({
+        'Access-Control-Expose-Headers': 'X-Checksum-Sha256,X-Save-Bytes',
+        'X-Checksum-Sha256': checksumSha256,
+        'X-Save-Bytes': String(binary.length),
+      });
+
+      const responseBody = {
+        success: true,
+        accepted: true,
+        walletAddress,
+        byteLength: binary.length,
+        checksumSha256,
+      };
+
+      res.status(200).json(responseBody);
+
+      setImmediate(async () => {
+        try {
+          const { player, parsed } = await syncPlayerFromUnityBinarySave({
+            walletAddress,
+            binary,
+          });
+
+          queueDA('save-binary', 'player.save.binary', player._id, walletAddress, () =>
+            zerogDAService.submitPlayerSave(walletAddress, player, 'save-binary')
+          );
+
+          console.log('[player] save/binary post-response sync ok', {
+            walletAddress,
+            coins: parsed.coins,
+            highScore: parsed.highScore,
+            byteLength: parsed.byteLength,
+          });
+        } catch (err) {
+          console.warn('[player] save/binary post-response sync failed', {
+            walletAddress,
+            message: err.message,
+          });
+        }
+      });
+    } catch (e) {
+      console.error('[player] save/binary', e);
+      return res.status(500).json({ success: false, message: 'Server error' });
+    }
+  }
+);
 
 /**
  * POST /player/game-sync

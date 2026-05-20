@@ -321,7 +321,7 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-2 sm:p-4 lg:p-6"
       style={{
         backdropFilter: 'blur(10px)',
         backgroundColor: 'rgba(0, 0, 0, 0.85)',
@@ -329,10 +329,11 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
       onClick={!isMinting ? handleClose : undefined}
     >
       <div
-        className="w-full max-w-3xl max-h-[90vh] overflow-y-auto custom-scrollbar
+        className="w-full max-w-none max-h-[92vh] overflow-y-auto custom-scrollbar
                    bg-zerion-blue-dark border-6 border-zerion-yellow rounded-xl
-                   transition-all duration-300 fade-in"
+                   transition-all duration-300 fade-in mx-auto"
         style={{
+          width: 'min(1100px, 96vw)',
           boxShadow: `
             0 0 0 4px #f59e0b,
             0 0 60px rgba(255, 215, 0, 0.6),
@@ -342,7 +343,7 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="bg-gradient-to-r from-zerion-blue to-zerion-blue-dark p-6 border-b-4 border-zerion-yellow">
+        <div className="bg-gradient-to-r from-zerion-blue to-zerion-blue-dark p-4 sm:p-6 md:p-7 border-b-4 border-zerion-yellow">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl md:text-3xl font-pixel text-zerion-yellow font-bold mb-2">
@@ -416,7 +417,7 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
         </div>
 
         {/* Content */}
-        <div className="p-6 space-y-6">
+        <div className="p-4 sm:p-6 md:p-7 space-y-6">
           {/* Benefits List */}
           <div className="bg-zerion-blue-medium/30 border-3 border-zerion-blue rounded-lg p-5">
             <h3 className="text-lg font-pixel text-zerion-yellow font-bold mb-4 flex items-center gap-2">

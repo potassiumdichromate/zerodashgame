@@ -169,6 +169,9 @@ export default function Leaderboard({ isOpen, onClose }) {
         >
           LEADERBOARD
         </h2>
+        <p className="text-center text-[10px] md:text-xs font-pixel text-zerion-blue-light -mt-5 mb-8 opacity-90">
+          Showing top 50 users
+        </p>
 
         {(zdAiLoading || zdComment) && (
           <div className="mb-6 rounded border-3 border-purple-500/70 bg-purple-950/40 px-4 py-3">
