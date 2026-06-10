@@ -495,7 +495,7 @@ function GameRootContent({ privyEnabled }) {
     disconnectWallet,
   } = useWallet();
 
-  const { logout: privyLogout } = usePrivy();
+  const { ready, authenticated, logout: privyLogout } = usePrivy();
   const { wallets: privyWallets } = useWallets();
 
   const [currentScreen, setCurrentScreen] = useState('splash');
