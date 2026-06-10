@@ -678,6 +678,32 @@ function GameRootContent({ privyEnabled }) {
   };
 
   /**
+   * Auto-advance to menu when the injected wallet (MetaMask etc.) is already
+   * connected from a previous visit — useWallet detects it passively via
+   * eth_accounts but nothing was watching the result.
+   */
+  useEffect(() => {
+    if (isJwtBootstrapping || currentScreen !== 'splash') return;
+    if (!walletAddress) return;
+    localStorage.setItem('walletAddress', walletAddress);
+    setCurrentScreen('menu');
+  }, [walletAddress, isJwtBootstrapping, currentScreen]);
+
+  /**
+   * Auto-advance to menu when Privy restores an existing session on page load
+   * (authenticated=true before the user does anything).
+   */
+  useEffect(() => {
+    if (isJwtBootstrapping || currentScreen !== 'splash') return;
+    if (!ready || !authenticated) return;
+    const privyAddr = privyWallets?.[0]?.address;
+    if (!privyAddr) return;
+    localStorage.setItem('walletAddress', privyAddr);
+    setPrivyWalletAddress(privyAddr);
+    setCurrentScreen('menu');
+  }, [ready, authenticated, privyWallets, isJwtBootstrapping, currentScreen]);
+
+  /**
    * Auto-enter menu when JWT + source=browser is provided in the URL
    */
   useEffect(() => {
