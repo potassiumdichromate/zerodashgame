@@ -8,6 +8,7 @@ const mongoose = require('mongoose');
 const playerRoutes = require('./routes/player');
 const nftRoutes = require('./routes/nft');
 const zerogRoutes = require('./routes/zerog');
+const kultPointsRoutes = require('./routes/kultPoints');
 const zdashBlockchain = require('./services/zdashBlockchainService');
 
 const PORT = Number(process.env.PORT || 8788);
@@ -25,6 +26,7 @@ app.get('/', (_req, res) => {
 app.use('/player', playerRoutes);
 app.use('/nft', nftRoutes);
 app.use('/zerog', zerogRoutes);
+app.use('/kult-points', kultPointsRoutes);
 
 async function bootstrap() {
   const uri = process.env.MONGODB_URI;
