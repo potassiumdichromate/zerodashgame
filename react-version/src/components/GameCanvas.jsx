@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import CustomLoading from './CustomLoading';
+import { buildPlayerAuthHeaders } from '../lib/playerAuth';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://zerodashbackend.onrender.com';
 
@@ -105,12 +106,16 @@ export default function GameCanvas({ walletAddress, isVisible, onBack }) {
         return;
       }
 
-      const response = await fetch(`${BACKEND_URL}/player/profile`, {
-        method: 'GET',
+      const headers = await buildPlayerAuthHeaders({
+        walletAddress: storedWalletAddress,
+        backendUrl: BACKEND_URL,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${storedWalletAddress}`,
         },
+      });
+      const response = await fetch(`${BACKEND_URL}/player/profile`, {
+        method: 'GET',
+        headers,
       });
 
       if (!response.ok) {

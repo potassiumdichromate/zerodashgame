@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { usePrivy, useWallets } from '@privy-io/react-auth';
 import { ethers } from 'ethers';
 import nftPassVideo from '../assets/nftpass.mp4';
+import { buildPlayerAuthHeaders } from '../lib/playerAuth';
 
 // ============================================
 // CONTRACT CONFIGURATION
@@ -101,10 +102,12 @@ export default function NFTMintModal({ isOpen, onClose, onMintSuccess }) {
 
         // Check if already minted from backend (simpler than contract call)
         try {
+          const headers = await buildPlayerAuthHeaders({
+            walletAddress,
+            backendUrl: BACKEND_URL,
+          });
           const profileResponse = await fetch(`${BACKEND_URL}/player/profile`, {
-            headers: {
-              'Authorization': `Bearer ${walletAddress}`,
-            },
+            headers,
           });
           
           if (profileResponse.ok) {

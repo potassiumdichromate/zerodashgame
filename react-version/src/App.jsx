@@ -14,6 +14,11 @@ import LoginModal from './components/LoginModal';
 import BackgroundMusic from './components/BackgroundMusic';
 import LandingPage from './components/LandingPage';
 import { deserializePlayerBinaryResponse } from './lib/zerogBinarySave';
+import {
+  buildPlayerAuthHeaders,
+  getStoredPlayerAuthToken,
+  storeBrowserPlayerAuthToken,
+} from './lib/playerAuth';
 import { Gamepad2, Trophy } from 'lucide-react';
 
 import desktopBg from './assets/bg.png';
@@ -403,8 +408,13 @@ function NFTPassInline({ walletAddress }) {
       try {
         const addr = localStorage.getItem('walletAddress');
         if (!addr) { setHasNFT(false); return; }
-        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/player/profile`, {
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${addr}` },
+        const headers = await buildPlayerAuthHeaders({
+          walletAddress: addr,
+          backendUrl: BACKEND_URL,
+          headers: { 'Content-Type': 'application/json' },
+        });
+        const res = await fetch(`${BACKEND_URL}/player/profile`, {
+          headers,
         });
         if (!res.ok) throw new Error();
         const data = await res.json();
@@ -498,6 +508,17 @@ function GameRootContent({ privyEnabled }) {
   const { ready, authenticated, logout: privyLogout } = usePrivy();
   const { wallets: privyWallets } = useWallets();
 
+
+  // ── Auth flow logger ──────────────────────────────────────────────────────
+  useEffect(() => {
+    console.log('[auth:privy]', { ready, authenticated, wallets: privyWallets?.map(w => w.address) });
+  }, [ready, authenticated, privyWallets]);
+
+  useEffect(() => {
+    console.log('[auth:injected]', { walletAddress, isConnected, isConnecting, error: walletError });
+  }, [walletAddress, isConnected, isConnecting, walletError]);
+
+
   const [currentScreen, setCurrentScreen] = useState('splash');
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showPrivyLogin, setShowPrivyLogin] = useState(false);
@@ -544,7 +565,7 @@ function GameRootContent({ privyEnabled }) {
         return;
       }
 
-      let jwt = localStorage.getItem('zgJwt');
+      let jwt = getStoredPlayerAuthToken();
       if (!jwt) {
         jwt = await doJwtAuth(addr);
       }
@@ -646,9 +667,14 @@ function GameRootContent({ privyEnabled }) {
       const storedWalletAddress = localStorage.getItem('walletAddress');
       if (!storedWalletAddress) { setStatsLoading(false); return; }
 
+      const headers = await buildPlayerAuthHeaders({
+        walletAddress: storedWalletAddress,
+        backendUrl: BACKEND_URL,
+        headers: { 'Content-Type': 'application/json' },
+      });
       const response = await fetch(`${BACKEND_URL}/player/profile`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${storedWalletAddress}` },
+        headers,
       });
       if (!response.ok) throw new Error('Failed to fetch player stats');
       const data = await response.json();
@@ -683,8 +709,10 @@ function GameRootContent({ privyEnabled }) {
    * eth_accounts but nothing was watching the result.
    */
   useEffect(() => {
+    console.log('[auth:auto-injected]', { walletAddress, isJwtBootstrapping, currentScreen });
     if (isJwtBootstrapping || currentScreen !== 'splash') return;
     if (!walletAddress) return;
+    console.log('[auth:auto-injected] → navigating to menu', walletAddress);
     localStorage.setItem('walletAddress', walletAddress);
     setCurrentScreen('menu');
   }, [walletAddress, isJwtBootstrapping, currentScreen]);
@@ -694,10 +722,15 @@ function GameRootContent({ privyEnabled }) {
    * (authenticated=true before the user does anything).
    */
   useEffect(() => {
+    const privyAddr = privyWallets?.[0]?.address;
+    console.log('[auth:auto-privy]', { ready, authenticated, privyAddr, isJwtBootstrapping, currentScreen });
     if (isJwtBootstrapping || currentScreen !== 'splash') return;
     if (!ready || !authenticated) return;
-    const privyAddr = privyWallets?.[0]?.address;
-    if (!privyAddr) return;
+    if (!privyAddr) {
+      console.warn('[auth:auto-privy] authenticated but no wallet address yet');
+      return;
+    }
+    console.log('[auth:auto-privy] → navigating to menu', privyAddr);
     localStorage.setItem('walletAddress', privyAddr);
     setPrivyWalletAddress(privyAddr);
     setCurrentScreen('menu');
@@ -724,11 +757,11 @@ function GameRootContent({ privyEnabled }) {
       try {
         const response = await fetch(`${BACKEND_URL}/player/profile`, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ jwt, source }),
         });
+
+        console.log('[auth:jwt-bootstrap] profile response', response.status);
 
         if (!response.ok) {
           throw new Error('JWT validation failed');
@@ -741,6 +774,7 @@ function GameRootContent({ privyEnabled }) {
           throw new Error('Missing wallet in profile response');
         }
 
+        storeBrowserPlayerAuthToken(jwt);
         localStorage.setItem('walletAddress', wallet);
 
         if (!cancelled) {
@@ -748,7 +782,6 @@ function GameRootContent({ privyEnabled }) {
           setCurrentScreen('menu');
         }
       } catch (err) {
-        console.warn('JWT bootstrap failed:', err);
       } finally {
         if (!cancelled) {
           setIsJwtBootstrapping(false);
@@ -771,6 +804,7 @@ function GameRootContent({ privyEnabled }) {
     localStorage.removeItem('walletAddress');
     localStorage.removeItem('privySession');
     localStorage.removeItem('zgJwt');
+    localStorage.removeItem('zgBrowserJwt');
     localStorage.removeItem('zgLoadedSaveJson');
     delete window.zeroDashBinarySave;
     try {
@@ -789,9 +823,12 @@ function GameRootContent({ privyEnabled }) {
    * Handle wallet connection
    */
   const handleConnect = async () => {
+    console.log('[auth:handleConnect] connecting wallet…');
     const address = await connectWallet();
+    console.log('[auth:handleConnect] connectWallet result', address);
     if (address) {
       setTimeout(() => {
+        console.log('[auth:handleConnect] → navigating to menu', address);
         setCurrentScreen('menu');
       }, 300);
     }
@@ -803,6 +840,7 @@ function GameRootContent({ privyEnabled }) {
    */
   const doJwtAuth = async (addr) => {
     const normalised = addr.toLowerCase();
+    console.log('[auth:doJwtAuth] start', normalised);
 
     // Use cached JWT if it belongs to this wallet and is not expiring within 5 min
     const cached = localStorage.getItem('zgJwt');
@@ -814,33 +852,40 @@ function GameRootContent({ privyEnabled }) {
           payload?.walletAddress === normalised &&
           payload?.exp * 1000 > Date.now() + 5 * 60 * 1000
         ) {
+          console.log('[auth:doJwtAuth] using cached JWT (exp:', new Date(payload.exp * 1000).toISOString(), ')');
           return cached;
         }
+        console.log('[auth:doJwtAuth] cached JWT expired or wrong wallet — re-auth');
       } catch { /* malformed token — re-auth */ }
     }
 
-    // Step 1: get nonce + exact message to sign
+    // Step 1: get nonce
+    console.log('[auth:doJwtAuth] fetching nonce');
     const nonceRes = await fetch(`${ZG_BACKEND}/auth/nonce?wallet=${encodeURIComponent(normalised)}`);
     if (!nonceRes.ok) throw new Error(`Nonce request failed: ${nonceRes.status}`);
     const { message, nonce } = await nonceRes.json();
+    console.log('[auth:doJwtAuth] nonce received', nonce);
 
-    // Hex-encode the message (required by personal_sign)
     const msgBytes = new TextEncoder().encode(message);
     const msgHex = '0x' + Array.from(msgBytes, b => b.toString(16).padStart(2, '0')).join('');
 
-    // Step 2: sign with the appropriate wallet provider
+    // Step 2: sign
     let signature;
     const privyWallet = privyWallets?.find(w => w.address.toLowerCase() === normalised);
     if (privyWallet) {
+      console.log('[auth:doJwtAuth] signing with Privy wallet');
       const provider = await privyWallet.getEthereumProvider();
       signature = await provider.request({ method: 'personal_sign', params: [msgHex, normalised] });
     } else if (window.ethereum) {
+      console.log('[auth:doJwtAuth] signing with injected wallet (window.ethereum)');
       signature = await window.ethereum.request({ method: 'personal_sign', params: [msgHex, normalised] });
     } else {
       throw new Error('No wallet provider available for signing');
     }
+    console.log('[auth:doJwtAuth] signature obtained');
 
-    // Step 3: exchange signature for JWT
+    // Step 3: exchange for JWT
+    console.log('[auth:doJwtAuth] exchanging signature for JWT');
     const loginRes = await fetch(`${ZG_BACKEND}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -851,9 +896,19 @@ function GameRootContent({ privyEnabled }) {
       throw new Error(err.error || `Login failed: ${loginRes.status}`);
     }
     const { token } = await loginRes.json();
+    console.log('[auth:doJwtAuth] ✅ JWT received and cached');
     localStorage.setItem('zgJwt', token);
     return token;
   };
+
+  useEffect(() => {
+    window.zeroDashDoJwtAuth = doJwtAuth;
+    return () => {
+      if (window.zeroDashDoJwtAuth === doJwtAuth) {
+        delete window.zeroDashDoJwtAuth;
+      }
+    };
+  }, [doJwtAuth]);
 
   /**
    * Do JWT auth first (stores token in localStorage['zgJwt']),
@@ -862,17 +917,23 @@ function GameRootContent({ privyEnabled }) {
    */
   const handleStartGame = async () => {
     const addr = walletAddress || privyWalletAddress;
-    if (!addr) return;
+    console.log('[auth:handleStartGame] addr', addr, '| walletAddress:', walletAddress, '| privyWalletAddress:', privyWalletAddress);
+    if (!addr) {
+      console.warn('[auth:handleStartGame] no address — aborting');
+      return;
+    }
 
     setIsStartingGame(true);
     setStartGameError(null);
 
     try {
-      await doJwtAuth(addr); // stores JWT in localStorage['zgJwt']
+      console.log('[auth:handleStartGame] calling doJwtAuth…');
+      await doJwtAuth(addr);
+      console.log('[auth:handleStartGame] ✅ doJwtAuth success → navigating to game');
       setIsStartingGame(false);
-      setCurrentScreen('game'); // original behavior — GameCanvas loads Unity inline
+      setCurrentScreen('game');
     } catch (err) {
-      console.error('JWT auth failed:', err);
+      console.error('[auth:handleStartGame] ❌ JWT auth failed:', err);
       setStartGameError(err.message || 'Authentication failed — please try again.');
       setIsStartingGame(false);
     }

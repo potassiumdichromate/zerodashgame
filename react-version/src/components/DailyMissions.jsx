@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { buildPlayerAuthHeaders } from '../lib/playerAuth';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://zerodashbackend.onrender.com';
 
@@ -28,12 +29,14 @@ export default function DailyMissions() {
         throw new Error('No wallet address found');
       }
 
+      const headers = await buildPlayerAuthHeaders({
+        walletAddress: storedWalletAddress,
+        backendUrl: BACKEND_URL,
+        headers: { 'Content-Type': 'application/json' },
+      });
       const response = await fetch(`${BACKEND_URL}/player/profile`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${storedWalletAddress}`,
-        },
+        headers,
       });
 
       if (!response.ok) {

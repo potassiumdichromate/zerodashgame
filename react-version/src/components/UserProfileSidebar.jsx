@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { buildPlayerAuthHeaders } from '../lib/playerAuth';
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://zerodashbackend.onrender.com';
 const DEFAULT_EXPLORER = (
@@ -73,12 +74,14 @@ export default function UserProfileSidebar({ isVisible, walletAddress }) {
         throw new Error('No wallet address found');
       }
 
+      const headers = await buildPlayerAuthHeaders({
+        walletAddress: storedWalletAddress,
+        backendUrl: BACKEND_URL,
+        headers: { 'Content-Type': 'application/json' },
+      });
       const response = await fetch(`${BACKEND_URL}/player/profile`, {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${storedWalletAddress}`, // Send wallet address as Bearer token
-        },
+        headers,
       });
 
       if (!response.ok) {
